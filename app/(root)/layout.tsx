@@ -1,26 +1,26 @@
-import { isAuthenticated } from '@/lib/actions/auth.action';
+import { isAuthenticated, signOut } from '@/lib/actions/auth';
 import { redirect } from 'next/navigation';
-import Image from 'next/image'
-import Link from 'next/link'
-import { ReactNode } from 'react'
+import { ReactNode } from 'react';
+import { LogOut } from 'lucide-react';
+import Logo from '@/components/logo';
 
-const RootLayout = async ({children} : {children: ReactNode}) => {
-
-  const isuserAuthenticated = await isAuthenticated();
-
-  if(!isuserAuthenticated) redirect('sign-in');
+const AppLayout = async ({ children }: { children: ReactNode }) => {
+  const authenticated = await isAuthenticated();
+  if (!authenticated) redirect('/sign-in');
 
   return (
-    <div className="root-layout">
-      <nav>
-        <Link href="/"className="flex items-center gap-2">
-        <Image src="/logo.svg" alt="logo" width={38} height={32}/>
-        <h2 className="text-primary-100">AI Prep</h2>
-        </Link>
+    <div className="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-8 max-sm:px-4">
+      <nav className="flex items-center justify-between">
+        <Logo />
+        <form action={signOut}>
+          <button type="submit" className="btn-outline !px-4 !py-2 text-xs">
+            <LogOut className="size-3.5" /> Sign out
+          </button>
+        </form>
       </nav>
       {children}
     </div>
-  )
-}
+  );
+};
 
-export default RootLayout
+export default AppLayout;
