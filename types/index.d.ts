@@ -1,4 +1,27 @@
-interface Feedback {
+interface ResumeProfile {
+  summary: string;
+  skills: string[];
+  yearsOfExperience: string;
+  highlights: string[];
+  claimsToProbe: string[];
+}
+
+interface FitSnapshot {
+  matchScore: number;
+  verdict: string;
+  matchedSkills: string[];
+  missingSkills: string[];
+  talkingPoints: string[];
+}
+
+interface JdMatch {
+  coverageScore: number;
+  gapsAddressed: string[];
+  gapsRemaining: string[];
+  comment: string;
+}
+
+interface InterviewReport {
   id: string;
   interviewId: string;
   totalScore: number;
@@ -10,6 +33,8 @@ interface Feedback {
   strengths: string[];
   areasForImprovement: string[];
   finalAssessment: string;
+  jdMatch?: JdMatch | null;
+  attempt: number;
   createdAt: string;
 }
 
@@ -23,13 +48,14 @@ interface Interview {
   userId: string;
   type: string;
   finalized: boolean;
+  jdText?: string | null;
+  resumeSnapshot?: ResumeProfile | null;
+  fitSnapshot?: FitSnapshot | null;
 }
 
-interface CreateFeedbackParams {
-  interviewId: string;
-  userId: string;
-  transcript: { role: string; content: string }[];
-  feedbackId?: string;
+interface SavedMessage {
+  role: "user" | "assistant";
+  content: string;
 }
 
 interface User {
@@ -38,62 +64,9 @@ interface User {
   id: string;
 }
 
-interface InterviewCardProps {
-  id?: string;
-  userId?: string;
-  role: string;
-  type: string;
-  techstack: string[];
-  createdAt?: string;
-}
-
-interface AgentProps {
-  userName: string;
-  userId?: string;
-  interviewId?: string;
-  feedbackId?: string;
-  type: "generate" | "interview";
-  questions?: string[];
-}
-
 interface RouteParams {
   params: Promise<Record<string, string>>;
   searchParams: Promise<Record<string, string>>;
 }
 
-interface GetFeedbackByInterviewIdParams {
-  interviewId: string;
-  userId: string;
-}
-
-interface GetLatestInterviewsParams {
-  userId: string;
-  limit?: number;
-}
-
-interface SignInParams {
-  email: string;
-  idToken: string;
-}
-
-interface SignUpParams {
-  uid: string;
-  name: string;
-  email: string;
-  password: string;
-}
-
 type FormType = "sign-in" | "sign-up";
-
-interface InterviewFormProps {
-  interviewId: string;
-  role: string;
-  level: string;
-  type: string;
-  techstack: string[];
-  amount: number;
-}
-
-interface TechIconProps {
-  techStack: string[];
-}

@@ -1,0 +1,1 @@
+ALTER TABLE "reports" ADD COLUMN "attempt" integer DEFAULT 1 NOT NULL;
