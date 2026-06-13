@@ -24,7 +24,7 @@ const Page = async ({ params }: RouteParams) => {
   if (!user) redirect('/sign-in');
 
   const interview = await getInterview(id);
-  if (!interview) redirect('/');
+  if (!interview) redirect('/dashboard');
 
   const attemptsUsed = await getAttemptsUsed(id);
   const attemptsExhausted = attemptsUsed >= MAX_INTERVIEW_ATTEMPTS;

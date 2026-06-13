@@ -31,7 +31,7 @@ const VoiceSession = ({ userName, interviewId }: { userName: string; interviewId
   const finishInterview = useCallback(async () => {
     if (messages.length === 0) {
       toast.error('No conversation was recorded, so a report could not be generated.');
-      router.push('/');
+      router.push('/dashboard');
       return;
     }
     setIsSavingReport(true);

@@ -1,3 +1,5 @@
+import { getAudioContextClass } from "./support";
+
 const OUTPUT_SAMPLE_RATE = 24000;
 
 function base64ToFloat32(base64: string): Float32Array {
@@ -24,7 +26,12 @@ export class PcmPlayer {
   // Must be called from a user-gesture handler so autoplay policy allows audio.
   init(): void {
     if (!this.context) {
-      this.context = new AudioContext({ sampleRate: OUTPUT_SAMPLE_RATE });
+      const AudioCtx = getAudioContextClass();
+      try {
+        this.context = new AudioCtx({ sampleRate: OUTPUT_SAMPLE_RATE });
+      } catch {
+        this.context = new AudioCtx();
+      }
     }
     if (this.context.state === "suspended") void this.context.resume();
   }

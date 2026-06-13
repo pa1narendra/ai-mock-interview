@@ -46,7 +46,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
         return;
       }
       toast.success("Welcome back!");
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     } else {
       const { error } = await authClient.signUp.email({ name: name!, email, password });
@@ -59,7 +59,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
         return;
       }
       toast.success("Account created - welcome to Mockstar!");
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     }
   }

@@ -2,14 +2,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import dayjs from 'dayjs';
 import { redirect } from 'next/navigation';
-import { Calendar, TrendingUp, TrendingDown, RotateCcw, LayoutDashboard, ArrowRight, Minus } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, RotateCcw, LayoutDashboard, ArrowRight, Minus, MessagesSquare } from 'lucide-react';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { getInterview } from '@/lib/actions/interviews';
 import { getReportsForInterview } from '@/lib/actions/reports';
-import { getPendingTranscripts } from '@/lib/actions/transcripts';
+import { getPendingTranscripts, getTranscriptTurns } from '@/lib/actions/transcripts';
 import { MAX_INTERVIEW_ATTEMPTS } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
 import GenerateReportButton from '@/components/generate-report-button';
+import TranscriptBubbles from '@/components/transcript-bubbles';
 
 export async function generateMetadata({ params }: RouteParams): Promise<Metadata> {
   const { id } = await params;
@@ -40,7 +41,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
   if (!user) redirect('/sign-in');
 
   const interview = await getInterview(id);
-  if (!interview) redirect('/');
+  if (!interview) redirect('/dashboard');
 
   const [allReports, pendingTranscripts] = await Promise.all([
     getReportsForInterview(id),
@@ -83,7 +84,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
         </div>
         {pendingPanel}
         <div className="flex justify-center">
-          <Link href="/" className="btn-outline">
+          <Link href="/dashboard" className="btn-outline">
             <LayoutDashboard className="size-4" /> Back to dashboard
           </Link>
         </div>
@@ -94,6 +95,8 @@ const Page = async ({ params, searchParams }: RouteParams) => {
   const report =
     allReports.find((candidate) => String(candidate.attempt) === attemptParam) ??
     allReports[allReports.length - 1];
+
+  const turns = await getTranscriptTurns(id, report.attempt);
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-8 fade-up">
@@ -245,6 +248,42 @@ const Page = async ({ params, searchParams }: RouteParams) => {
         </div>
       )}
 
+      {report.questionFeedback && report.questionFeedback.length > 0 && (
+        <div className="panel flex flex-col gap-5 px-8 py-6">
+          <h3>Question-by-question</h3>
+          {report.questionFeedback.map((item, index) => (
+            <div key={index} className="space-y-2 border-t border-white/[0.06] pt-4 first:border-0 first:pt-0">
+              <div className="flex items-start justify-between gap-4">
+                <p className="font-medium text-mist-100">{index + 1}. {item.question}</p>
+                <span className={`shrink-0 font-semibold ${scoreTone(item.score)}`}>{item.score}/100</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className={`h-full rounded-full ${barTone(item.score)}`}
+                  style={{ width: `${Math.max(2, Math.min(100, item.score))}%` }}
+                />
+              </div>
+              <p className="text-sm text-mist-300"><span className="text-mist-500">Your answer:</span> {item.answerSummary}</p>
+              <p className="text-sm"><span className="text-mist-500">Feedback:</span> {item.feedback}</p>
+              <p className="text-sm text-spark-300/90"><span className="text-mist-500">A stronger answer:</span> {item.idealAnswer}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {turns.length > 0 && (
+        <details className="panel px-8 py-6 group">
+          <summary className="flex cursor-pointer items-center gap-2 text-lg font-semibold text-mist-100 marker:content-none">
+            <MessagesSquare className="size-5 text-spark-400" /> Full transcript
+            <span className="ml-auto text-sm font-normal text-mist-500 group-open:hidden">Show</span>
+            <span className="ml-auto hidden text-sm font-normal text-mist-500 group-open:inline">Hide</span>
+          </summary>
+          <div className="mt-5 flex flex-col gap-3">
+            <TranscriptBubbles bubbles={turns} />
+          </div>
+        </details>
+      )}
+
       <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
         <div className="panel flex flex-col gap-3 px-7 py-6">
           <h3 className="flex items-center gap-2 text-lg">
@@ -270,7 +309,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
       </div>
 
       <div className="flex justify-center gap-4 max-sm:flex-col max-sm:items-center">
-        <Link href="/" className="btn-outline">
+        <Link href="/dashboard" className="btn-outline">
           <LayoutDashboard className="size-4" /> Back to dashboard
         </Link>
         {canRetake ? (

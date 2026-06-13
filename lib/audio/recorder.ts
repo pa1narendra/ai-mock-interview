@@ -1,3 +1,5 @@
+import { getAudioContextClass, UnsupportedAudioError } from "./support";
+
 const TARGET_SAMPLE_RATE = 16000;
 
 export class MicPermissionError extends Error {
@@ -45,6 +47,10 @@ export class PcmRecorder {
   private worklet: AudioWorkletNode | null = null;
 
   async start(onChunk: (base64Pcm16: string) => void): Promise<void> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new UnsupportedAudioError();
+    }
+
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -60,13 +66,17 @@ export class PcmRecorder {
       throw e;
     }
 
+    const AudioCtx = getAudioContextClass();
     try {
-      this.context = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+      this.context = new AudioCtx({ sampleRate: TARGET_SAMPLE_RATE });
     } catch {
-      this.context = new AudioContext();
+      this.context = new AudioCtx();
     }
     if (this.context.state === "suspended") await this.context.resume();
 
+    if (!this.context.audioWorklet) {
+      throw new UnsupportedAudioError();
+    }
     await this.context.audioWorklet.addModule("/worklets/pcm-recorder.worklet.js");
 
     this.source = this.context.createMediaStreamSource(this.stream);

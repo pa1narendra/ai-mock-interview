@@ -8,7 +8,7 @@ export default function NotFound() {
         The page you are looking for does not exist or has been moved.
       </p>
       <Link href="/" className="btn-spark">
-        Back to dashboard
+        Back home
       </Link>
     </div>
   )
