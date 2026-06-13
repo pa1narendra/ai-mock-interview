@@ -59,6 +59,23 @@ export async function saveTranscript(params: { interviewId: string; transcript: 
     }
 }
 
+// The saved turns for one attempt, for read-only display on the report page.
+export async function getTranscriptTurns(interviewId: string, attempt: number): Promise<SavedMessage[]> {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
+    const [row] = await db.select({ turns: transcripts.turns })
+        .from(transcripts)
+        .where(and(
+            eq(transcripts.interviewId, interviewId),
+            eq(transcripts.userId, user.id),
+            eq(transcripts.attempt, attempt),
+        ))
+        .limit(1);
+
+    return row?.turns ?? [];
+}
+
 // Completed attempts whose report generation failed - shown on the report
 // page with a retry button.
 export async function getPendingTranscripts(interviewId: string): Promise<Array<{ id: string; attempt: number; createdAt: string }>> {

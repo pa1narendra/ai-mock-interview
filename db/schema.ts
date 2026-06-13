@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 // ---------------------------------------------------------------------------
 // Auth tables (managed by Better Auth - names/columns follow its conventions)
@@ -80,14 +80,13 @@ export const interviews = pgTable("interviews", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  finalized: boolean("finalized").notNull().default(true),
   jdText: text("jd_text"),
   resumeSnapshot: jsonb("resume_snapshot").$type<ResumeProfile>(),
   fitSnapshot: jsonb("fit_snapshot").$type<FitSnapshot>(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [
   index("interviews_user_id_idx").on(table.userId),
-  index("interviews_finalized_created_idx").on(table.finalized, table.createdAt),
+  index("interviews_created_idx").on(table.createdAt),
 ]);
 
 export const reports = pgTable("reports", {
@@ -106,6 +105,7 @@ export const reports = pgTable("reports", {
   areasForImprovement: jsonb("areas_for_improvement").$type<string[]>().notNull(),
   finalAssessment: text("final_assessment").notNull(),
   jdMatch: jsonb("jd_match").$type<JdMatch>(),
+  questionFeedback: jsonb("question_feedback").$type<QuestionFeedback[]>(),
   attempt: integer("attempt").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [
@@ -136,8 +136,12 @@ export const transcripts = pgTable("transcripts", {
 
 export const rateLimits = pgTable("rate_limits", {
   userId: text("user_id")
-    .primaryKey()
+    .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  // Separate fixed-window counters per action (e.g. "generate", "report").
+  action: text("action").notNull(),
   windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
   count: integer("count").notNull().default(0),
-});
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.action] }),
+]);

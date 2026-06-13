@@ -5,10 +5,12 @@ import { db } from "@/lib/db";
 import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { resilientGenerateObject } from "@/lib/ai/generate";
-import { jdMatchSchema, reportSchema } from "@/lib/schemas";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { jdMatchSchema, questionFeedbackSchema, reportSchema } from "@/lib/schemas";
 
 const MAX_TRANSCRIPT_CHARS = 30_000;
 const MAX_JD_CHARS = 6_000;
+const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
 // Generates a report from a transcript saved by saveTranscript(). The
 // transcript is durable, so a failure here loses nothing - the report page
@@ -36,6 +38,11 @@ export async function createReport(transcriptId: string) {
                 .limit(1);
             if (existing) return { success: true as const, reportId: existing.id, attempt: existing.attempt };
         }
+
+        // Light rate limit: closes the retry-spam vector on a failing
+        // transcript (separate counter from interview generation).
+        const limited = await checkRateLimit(user.id, "report", 20);
+        if (!limited.ok) return { success: false as const, rateLimited: true };
 
         const [interview] = await db.select()
             .from(interviews)
@@ -66,7 +73,13 @@ export async function createReport(transcriptId: string) {
         Additionally, produce a jdMatch assessment: based on the candidate's ANSWERS in this interview (not just their resume), how well did they cover the job's requirements? List the requirements they addressed convincingly (gapsAddressed) versus those still unproven (gapsRemaining), with a 0-100 coverageScore and a short comment.`;
         }
 
-        const schema = withJd ? reportSchema.extend({ jdMatch: jdMatchSchema }) : reportSchema;
+        const questionList = interview.questions
+            .map((question, index) => `${index + 1}. ${question}`)
+            .join("\n");
+
+        const schema = withJd
+            ? reportSchema.extend({ jdMatch: jdMatchSchema, questionFeedback: questionFeedbackSchema })
+            : reportSchema.extend({ questionFeedback: questionFeedbackSchema });
 
         const { object } = await resilientGenerateObject({
             schema,
@@ -80,13 +93,18 @@ export async function createReport(transcriptId: string) {
         - "Technical Knowledge": Understanding of key concepts for the role.
         - "Problem Solving": Ability to analyze problems and propose solutions.
         - "Cultural Fit": Alignment with company values and job role.
-        - "Confidence and Clarity": Confidence in responses, engagement, and clarity.${jdSection}
+        - "Confidence and Clarity": Confidence in responses, engagement, and clarity.
+
+        These are the planned interview questions:
+        ${questionList}
+
+        Also produce questionFeedback: one entry per question that was actually asked and answered in the transcript (match by meaning, not exact wording; skip planned questions the interviewer never got to). For each: the question text, a one-to-two sentence answerSummary of how the candidate answered, a 0-100 score, concrete feedback on that answer, and idealAnswer - a brief sketch of what a strong answer would have covered.${jdSection}
         `,
             system:
                 "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
         });
 
-        const result = object as typeof object & { jdMatch?: JdMatch };
+        const result = object as typeof object & { jdMatch?: JdMatch; questionFeedback?: QuestionFeedback[] };
 
         const [report] = await db.insert(reports).values({
             interviewId: transcript.interviewId,
@@ -104,13 +122,16 @@ export async function createReport(transcriptId: string) {
                     gapsRemaining: result.jdMatch.gapsRemaining.slice(0, 10),
                 }
                 : null,
+            questionFeedback: (result.questionFeedback ?? [])
+                .slice(0, 20)
+                .map((q) => ({ ...q, score: clamp(q.score) })),
             attempt: transcript.attempt,
         }).returning({ id: reports.id });
 
-        // The report is generated, so the raw turns have served their purpose -
-        // clear them to keep storage bounded (the row stays for attempt counting).
+        // Keep the transcript turns so the candidate can review them on the
+        // report page; just flip the status so it's no longer "pending".
         await db.update(transcripts)
-            .set({ status: "reported", turns: [] })
+            .set({ status: "reported" })
             .where(eq(transcripts.id, transcript.id));
 
         return { success: true as const, reportId: report.id, attempt: transcript.attempt };

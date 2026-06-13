@@ -21,6 +21,14 @@ interface JdMatch {
   comment: string;
 }
 
+interface QuestionFeedback {
+  question: string;
+  answerSummary: string;
+  score: number;
+  feedback: string;
+  idealAnswer: string;
+}
+
 interface InterviewReport {
   id: string;
   interviewId: string;
@@ -34,6 +42,7 @@ interface InterviewReport {
   areasForImprovement: string[];
   finalAssessment: string;
   jdMatch?: JdMatch | null;
+  questionFeedback?: QuestionFeedback[] | null;
   attempt: number;
   createdAt: string;
 }
@@ -47,7 +56,6 @@ interface Interview {
   createdAt: string;
   userId: string;
   type: string;
-  finalized: boolean;
   jdText?: string | null;
   resumeSnapshot?: ResumeProfile | null;
   fitSnapshot?: FitSnapshot | null;

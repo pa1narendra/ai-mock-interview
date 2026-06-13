@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   }
 
   // Only valid requests consume a rate-limit slot.
-  const limited = await checkRateLimit(user.id);
+  const limited = await checkRateLimit(user.id, "generate", 10);
   if (!limited.ok) {
     return Response.json(
       { success: false, message: "Too many interviews generated. Try again in an hour." },
@@ -201,7 +201,6 @@ export async function POST(request: Request) {
         techstack: finalTechstack,
         questions: result.questions.slice(0, amount),
         userId: user.id,
-        finalized: true,
         jdText: hasJd ? jd : null,
         resumeSnapshot,
         fitSnapshot,

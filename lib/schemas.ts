@@ -77,6 +77,16 @@ export const jdMatchSchema = z.object({
   comment: z.string(),
 });
 
+export const questionFeedbackSchema = z.array(
+  z.object({
+    question: z.string(),
+    answerSummary: z.string(),
+    score: z.number(),
+    feedback: z.string(),
+    idealAnswer: z.string(),
+  })
+);
+
 export const reportSchema = z.object({
   totalScore: z.number(),
   categoryScores: z

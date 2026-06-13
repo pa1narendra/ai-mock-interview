@@ -1,6 +1,7 @@
 'use server';
 
-import { and, desc, eq, ne } from "drizzle-orm";
+import { desc, eq, ne } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { interviews } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
@@ -21,9 +22,25 @@ export async function getCommunityInterviews(limit = 20): Promise<Interview[] | 
 
     return db.select()
         .from(interviews)
-        .where(and(eq(interviews.finalized, true), ne(interviews.userId, user.id)))
+        .where(ne(interviews.userId, user.id))
         .orderBy(desc(interviews.createdAt))
         .limit(limit);
+}
+
+export async function deleteInterview(id: string): Promise<{ success: boolean }> {
+    const user = await getCurrentUser();
+    if (!user) return { success: false };
+
+    const [interview] = await db.select({ userId: interviews.userId })
+        .from(interviews)
+        .where(eq(interviews.id, id))
+        .limit(1);
+    if (!interview || interview.userId !== user.id) return { success: false };
+
+    // FK cascade removes the interview's reports and transcripts.
+    await db.delete(interviews).where(eq(interviews.id, id));
+    revalidatePath("/dashboard");
+    return { success: true };
 }
 
 export async function getInterview(id: string): Promise<Interview | null> {
