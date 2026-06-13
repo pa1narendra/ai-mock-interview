@@ -12,6 +12,8 @@ Mockstar is a voice-first mock interview platform: describe the role you're targ
 - **Google Gemini** — `gemini-2.5-flash` for question generation and report scoring (Vercel AI SDK), `gemini-3.1-flash-live-preview` for the real-time voice session
 - Deployed on **Vercel**
 
+> Two Google AI packages are intentional, not accidental: `@ai-sdk/google` (via the Vercel AI SDK) handles structured text/JSON generation, while `@google/genai` is Google's own SDK used only for the Live API WebSocket voice session, which the AI SDK doesn't cover.
+
 ## Architecture
 
 ```

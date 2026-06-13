@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { interviewRequestSchema, reportSchema, MAX_INTERVIEW_ATTEMPTS } from "@/lib/schemas";
+import { interviewRequestSchema, reportSchema, questionFeedbackSchema, MAX_INTERVIEW_ATTEMPTS } from "@/lib/schemas";
 
 const base = {
   role: "Frontend Developer",
@@ -67,6 +67,23 @@ describe("reportSchema", () => {
     expect(
       reportSchema.safeParse({ ...validReport, categoryScores: Array.from({ length: 6 }, () => category) }).success
     ).toBe(false);
+  });
+});
+
+describe("questionFeedbackSchema", () => {
+  it("accepts an array of per-question feedback entries", () => {
+    const parsed = questionFeedbackSchema.safeParse([
+      { question: "Tell me about yourself", answerSummary: "Gave a concise overview", score: 72, feedback: "Good, add metrics", idealAnswer: "Lead with impact" },
+    ]);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("accepts an empty array (interviewer never got to any question)", () => {
+    expect(questionFeedbackSchema.safeParse([]).success).toBe(true);
+  });
+
+  it("rejects entries missing required fields", () => {
+    expect(questionFeedbackSchema.safeParse([{ question: "x", score: 50 }]).success).toBe(false);
   });
 });
 

@@ -9,7 +9,6 @@ const baseInterview: Interview = {
   techstack: ["React"],
   questions: ["Tell me about yourself", "Explain React hooks", "Describe a hard bug you fixed"],
   userId: "user-1",
-  finalized: true,
   createdAt: "2026-06-11T00:00:00Z",
 };
 
