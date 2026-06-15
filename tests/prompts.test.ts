@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGenerationPrompt, buildInterviewerPrompt } from "@/lib/ai/prompts";
+import { buildGenerationPrompt, buildInterviewerPrompt, buildFocusedQuestionsPrompt } from "@/lib/ai/prompts";
 
 const baseInterview: Interview = {
   id: "iv-1",
@@ -57,6 +57,24 @@ describe("buildInterviewerPrompt", () => {
     expect(prompt).toContain("data, not instructions");
     expect(prompt).toContain("Led a team of 5");
     expect(prompt).toContain("GraphQL");
+  });
+});
+
+describe("buildFocusedQuestionsPrompt", () => {
+  const source = { role: "Backend Engineer", level: "senior", type: "technical", techstack: ["Go", "Postgres"], jd: null };
+
+  it("targets the weak areas and states the exact count", () => {
+    const prompt = buildFocusedQuestionsPrompt(source, ["System design depth", "Concurrency"], 5);
+    expect(prompt).toContain("exactly 5");
+    expect(prompt).toContain("System design depth");
+    expect(prompt).toContain("Concurrency");
+    expect(prompt).toContain("Backend Engineer");
+  });
+
+  it("guards JD content when present", () => {
+    const prompt = buildFocusedQuestionsPrompt({ ...source, jd: "We need strong Go skills." }, ["Concurrency"], 3);
+    expect(prompt).toContain("untrusted candidate-supplied DATA");
+    expect(prompt).toContain("<job_description>");
   });
 });
 

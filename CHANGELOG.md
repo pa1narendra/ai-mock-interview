@@ -4,6 +4,18 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.5.0] - 2026-06-13
+
+### Added
+- **Practice my weak areas** — a button on the report generates a fresh interview that drills into the exact gaps the report found, keeping the original role/JD/resume context.
+- **Skill-trends dashboard** — a chart of your overall score over time plus per-category deltas across all interviews, shown once you have two or more reports.
+- **Shareable report link** — generate a public, read-only link to a report (scores and feedback only; transcript, JD, and resume are never shared).
+- **Download PDF** — export a clean printable version of any report.
+- **Interviewer voice picker** — choose the interviewer's voice when creating an interview.
+- **Edit questions before starting** — review and tweak the generated questions on the interview page.
+- **Back navigation** — a Back control on every in-app page.
+- **Voice session timer** — elapsed time shown during a live interview.
+
 ## [0.4.0] - 2026-06-12
 
 ### Added
