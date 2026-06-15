@@ -83,6 +83,8 @@ export const interviews = pgTable("interviews", {
   jdText: text("jd_text"),
   resumeSnapshot: jsonb("resume_snapshot").$type<ResumeProfile>(),
   fitSnapshot: jsonb("fit_snapshot").$type<FitSnapshot>(),
+  // Prebuilt Gemini Live voice for the interviewer (falls back to LIVE_VOICE).
+  voice: text("voice"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [
   index("interviews_user_id_idx").on(table.userId),
@@ -107,6 +109,8 @@ export const reports = pgTable("reports", {
   jdMatch: jsonb("jd_match").$type<JdMatch>(),
   questionFeedback: jsonb("question_feedback").$type<QuestionFeedback[]>(),
   attempt: integer("attempt").notNull().default(1),
+  // Random token for the public read-only share link; null = not shared.
+  shareId: uuid("share_id").unique(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [
   index("reports_interview_user_idx").on(table.interviewId, table.userId),

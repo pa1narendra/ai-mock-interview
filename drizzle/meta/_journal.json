@@ -43,6 +43,13 @@
       "when": 1781350838210,
       "tag": "0005_damp_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781549230348,
+      "tag": "0006_greedy_zuras",
+      "breakpoints": true
     }
   ]
 }

@@ -71,6 +71,38 @@ skills, and short talking points the candidate should prepare for.`);
   return sections.join("\n\n");
 }
 
+// Questions for a focused re-practice round, concentrated on the weak areas a
+// previous report surfaced, while keeping the original role/JD/resume context.
+export function buildFocusedQuestionsPrompt(
+  source: { role: string; level: string; type: string; techstack: string[]; jd?: string | null },
+  weakAreas: string[],
+  amount: number
+): string {
+  const sections: string[] = [
+    `Prepare exactly ${amount} mock-interview questions for a focused practice round.
+The role is ${source.role} (${source.level} level), interview style: ${source.type}.${
+      source.techstack.length ? `\nTech stack: ${source.techstack.join(", ")}.` : ""
+    }
+The candidate already did a full interview; this round must drill into the specific
+weaknesses below. Write pointed questions that force the candidate to demonstrate
+improvement in exactly these areas - do not ask generic questions.
+
+Weak areas to target:
+${weakAreas.map((area) => `- ${area}`).join("\n")}
+
+The questions are read aloud by a voice assistant, so use plain conversational text
+only - no markdown, slashes, asterisks or other special characters.`,
+  ];
+
+  if (source.jd) {
+    sections.push(DATA_GUARD);
+    sections.push(`<job_description>\n${source.jd}\n</job_description>`);
+    sections.push("Keep the questions relevant to this job description.");
+  }
+
+  return sections.join("\n\n");
+}
+
 export function buildInterviewerPrompt(interview: Interview, candidateName: string): string {
   const totalQuestions = interview.questions.length;
   const questionList = interview.questions

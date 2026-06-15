@@ -21,6 +21,23 @@ interface JdMatch {
   comment: string;
 }
 
+interface SharedReport {
+  role: string;
+  totalScore: number;
+  categoryScores: Array<{ name: string; score: number; comment: string }>;
+  strengths: string[];
+  areasForImprovement: string[];
+  finalAssessment: string;
+  questionFeedback: QuestionFeedback[] | null;
+  createdAt: string;
+}
+
+interface ScorePoint {
+  createdAt: string;
+  totalScore: number;
+  categoryScores: Array<{ name: string; score: number; comment: string }>;
+}
+
 interface QuestionFeedback {
   question: string;
   answerSummary: string;
@@ -44,6 +61,7 @@ interface InterviewReport {
   jdMatch?: JdMatch | null;
   questionFeedback?: QuestionFeedback[] | null;
   attempt: number;
+  shareId?: string | null;
   createdAt: string;
 }
 
@@ -59,6 +77,7 @@ interface Interview {
   jdText?: string | null;
   resumeSnapshot?: ResumeProfile | null;
   fitSnapshot?: FitSnapshot | null;
+  voice?: string | null;
 }
 
 interface SavedMessage {

@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     responseModalities: [Modality.AUDIO],
     systemInstruction: buildInterviewerPrompt(interview, user.name),
     speechConfig: {
-      voiceConfig: { prebuiltVoiceConfig: { voiceName: LIVE_VOICE } },
+      voiceConfig: { prebuiltVoiceConfig: { voiceName: interview.voice ?? LIVE_VOICE } },
     },
     inputAudioTranscription: {},
     outputAudioTranscription: {},

@@ -172,6 +172,65 @@ export async function getReportsForInterview(interviewId: string): Promise<Inter
         .orderBy(reports.attempt);
 }
 
+// Score history across ALL of the user's reports, oldest first - powers the
+// dashboard trend chart.
+export async function getMyScoreHistory(): Promise<ScorePoint[]> {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
+    const rows = await db.select({
+        createdAt: reports.createdAt,
+        totalScore: reports.totalScore,
+        categoryScores: reports.categoryScores,
+    })
+        .from(reports)
+        .where(eq(reports.userId, user.id))
+        .orderBy(reports.createdAt);
+
+    return rows.map((row) => ({
+        createdAt: row.createdAt,
+        totalScore: row.totalScore,
+        categoryScores: row.categoryScores,
+    }));
+}
+
+// Mints (or clears) the public share token for a report the user owns.
+export async function toggleReportShare(reportId: string): Promise<{ success: boolean; shareId?: string | null }> {
+    const user = await getCurrentUser();
+    if (!user) return { success: false };
+
+    const [report] = await db.select({ shareId: reports.shareId })
+        .from(reports)
+        .where(and(eq(reports.id, reportId), eq(reports.userId, user.id)))
+        .limit(1);
+    if (!report) return { success: false };
+
+    const nextShareId = report.shareId ? null : crypto.randomUUID();
+    await db.update(reports).set({ shareId: nextShareId }).where(eq(reports.id, reportId));
+    return { success: true, shareId: nextShareId };
+}
+
+// Public, unauthenticated read of a shared report. Deliberately excludes the
+// transcript and any JD/resume-derived data - only the scored feedback.
+export async function getSharedReport(shareId: string): Promise<SharedReport | null> {
+    const [row] = await db.select({
+        role: interviews.role,
+        totalScore: reports.totalScore,
+        categoryScores: reports.categoryScores,
+        strengths: reports.strengths,
+        areasForImprovement: reports.areasForImprovement,
+        finalAssessment: reports.finalAssessment,
+        questionFeedback: reports.questionFeedback,
+        createdAt: reports.createdAt,
+    })
+        .from(reports)
+        .innerJoin(interviews, eq(reports.interviewId, interviews.id))
+        .where(eq(reports.shareId, shareId))
+        .limit(1);
+
+    return row ?? null;
+}
+
 export async function getReportForInterview(interviewId: string): Promise<InterviewReport | null> {
     const user = await getCurrentUser();
     if (!user) return null;

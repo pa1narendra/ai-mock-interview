@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { role, level, techstack, type, amount, jd, useSavedResume } = parsed.data;
+  const { role, level, techstack, type, amount, jd, useSavedResume, voice } = parsed.data;
 
   // --- resolve resume context: new upload > saved resume > none ---
   let savedResume: { markdown: string; profile: ResumeProfile } | null = null;
@@ -204,6 +204,7 @@ export async function POST(request: Request) {
         jdText: hasJd ? jd : null,
         resumeSnapshot,
         fitSnapshot,
+        voice: voice ?? null,
       })
       .returning({ id: interviews.id });
 

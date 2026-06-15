@@ -2,6 +2,16 @@ import { z } from "zod";
 
 export const MAX_INTERVIEW_ATTEMPTS = 3;
 
+// Prebuilt Gemini Live voices offered in the interview form.
+export const VOICE_OPTIONS = [
+  { value: "Aoede", label: "Aoede (warm)" },
+  { value: "Kore", label: "Kore (neutral)" },
+  { value: "Puck", label: "Puck (upbeat)" },
+  { value: "Charon", label: "Charon (deep)" },
+] as const;
+
+const VOICE_VALUES = VOICE_OPTIONS.map((v) => v.value) as [string, ...string[]];
+
 export const interviewRequestSchema = z
   .object({
     role: z.string().trim().min(2, "Role is required").max(100),
@@ -15,6 +25,7 @@ export const interviewRequestSchema = z
       .max(20),
     jd: z.string().trim().max(15_000).optional().default(""),
     useSavedResume: z.coerce.boolean().optional().default(false),
+    voice: z.enum(VOICE_VALUES).optional(),
   })
   .refine((value) => value.techstack.length > 0 || value.jd.length > 0, {
     message: "Add a tech stack or paste a job description",
@@ -36,6 +47,7 @@ export const interviewFormSchema = z.object({
     .min(1)
     .max(20),
   jd: z.string().trim().max(15_000, "Job description is too long (15,000 characters max)"),
+  voice: z.enum(VOICE_VALUES),
 });
 
 export type InterviewFormValues = z.infer<typeof interviewFormSchema>;
