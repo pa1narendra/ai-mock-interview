@@ -65,6 +65,20 @@ const VoiceSession = ({ userName, interviewId }: { userName: string; interviewId
 
   const isLive = status === SessionStatus.LIVE;
 
+  // Elapsed-time counter while live (audio-only Live sessions cap at ~15 min).
+  // Derived from a start timestamp so the effect never sets state synchronously.
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!isLive) return;
+    const start = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => {
+      clearInterval(id);
+      setElapsed(0);
+    };
+  }, [isLive]);
+  const mmss = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+
   return (
     <section className="flex flex-col items-center gap-10 py-8 fade-up">
       <div className="status-pill">
@@ -75,6 +89,7 @@ const VoiceSession = ({ userName, interviewId }: { userName: string; interviewId
           )}
         />
         {statusLabel[status]}
+        {isLive && <span className="ml-1 tabular-nums text-mist-500">{mmss}</span>}
       </div>
 
       <div className="py-6">

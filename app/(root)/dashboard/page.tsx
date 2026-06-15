@@ -3,9 +3,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AudioLines, Sparkles } from 'lucide-react';
 import InterviewCard from '@/components/interview-card';
+import ScoreTrends from '@/components/score-trends';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { getMyInterviews, getCommunityInterviews } from '@/lib/actions/interviews';
-import { getMyReportsByInterview } from '@/lib/actions/reports';
+import { getMyReportsByInterview, getMyScoreHistory } from '@/lib/actions/reports';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -21,7 +22,10 @@ const Page = async () => {
   ]);
 
   const allInterviews = [...(myInterviews ?? []), ...(communityInterviews ?? [])];
-  const reports = await getMyReportsByInterview(allInterviews.map((interview) => interview.id));
+  const [reports, scoreHistory] = await Promise.all([
+    getMyReportsByInterview(allInterviews.map((interview) => interview.id)),
+    getMyScoreHistory(),
+  ]);
 
   return (
     <>
@@ -46,6 +50,8 @@ const Page = async () => {
           </Link>
         </div>
       </section>
+
+      <ScoreTrends points={scoreHistory} />
 
       <section className="flex flex-col gap-6">
         <h2>Your interviews</h2>

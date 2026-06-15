@@ -225,3 +225,22 @@
     transform: translateY(0);
   }
 }
+
+/* Print / "Download PDF": flatten the dark theme to a clean light document. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  * {
+    color: #111827 !important;
+    box-shadow: none !important;
+  }
+  .panel {
+    border: 1px solid #d1d5db !important;
+    background: #ffffff !important;
+    break-inside: avoid;
+  }
+}

@@ -11,7 +11,7 @@ import { FileText, Loader2, Sparkles, Upload, X } from "lucide-react"
 import TextField from "./form/text-field"
 import SelectField from "./form/select-field"
 import TextareaField from "./form/textarea-field"
-import { interviewFormSchema, type InterviewFormValues } from "@/lib/schemas"
+import { interviewFormSchema, VOICE_OPTIONS, type InterviewFormValues } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
 
 const levelOptions = [
@@ -48,6 +48,7 @@ const InterviewForm = ({ savedResume }: InterviewFormProps) => {
       techstack: "",
       amount: 5,
       jd: "",
+      voice: "Aoede",
     },
   })
 
@@ -84,6 +85,7 @@ const InterviewForm = ({ savedResume }: InterviewFormProps) => {
       fd.set("type", values.type)
       fd.set("amount", String(values.amount))
       fd.set("techstack", values.techstack)
+      fd.set("voice", values.voice)
       if (targeted) {
         fd.set("jd", values.jd)
         if (resumeFile) fd.append("resume", resumeFile)
@@ -136,6 +138,8 @@ const InterviewForm = ({ savedResume }: InterviewFormProps) => {
           label="Job role"
           placeholder="e.g. Frontend Developer"
         />
+
+        <SelectField control={form.control} name="voice" label="Interviewer voice" options={VOICE_OPTIONS} />
 
         <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
           <SelectField control={form.control} name="level" label="Experience level" options={levelOptions} />

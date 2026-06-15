@@ -11,6 +11,9 @@ import { MAX_INTERVIEW_ATTEMPTS } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
 import GenerateReportButton from '@/components/generate-report-button';
 import TranscriptBubbles from '@/components/transcript-bubbles';
+import PracticeGapsButton from '@/components/practice-gaps-button';
+import ShareReportButton from '@/components/share-report-button';
+import PrintButton from '@/components/print-button';
 
 export async function generateMetadata({ params }: RouteParams): Promise<Metadata> {
   const { id } = await params;
@@ -308,10 +311,16 @@ const Page = async ({ params, searchParams }: RouteParams) => {
         </div>
       </div>
 
-      <div className="flex justify-center gap-4 max-sm:flex-col max-sm:items-center">
+      <div className="no-print flex flex-wrap items-center justify-center gap-3">
+        <ShareReportButton reportId={report.id} initialShareId={report.shareId ?? null} />
+        <PrintButton />
+      </div>
+
+      <div className="no-print flex flex-wrap justify-center gap-4 max-sm:flex-col max-sm:items-center">
         <Link href="/dashboard" className="btn-outline">
           <LayoutDashboard className="size-4" /> Back to dashboard
         </Link>
+        {report.areasForImprovement.length > 0 && <PracticeGapsButton interviewId={id} />}
         {canRetake ? (
           <Link href={`/interviews/${id}`} className="btn-spark">
             <RotateCcw className="size-4" /> Retake interview ({MAX_INTERVIEW_ATTEMPTS - attemptsUsed} left)

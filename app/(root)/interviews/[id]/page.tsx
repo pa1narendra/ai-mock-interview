@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { FileBarChart } from 'lucide-react';
 import VoiceSession from '@/components/voice-session';
 import TechBadges from '@/components/tech-badges';
+import EditQuestions from '@/components/edit-questions';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { getInterview } from '@/lib/actions/interviews';
 import { getAttemptsUsed } from '@/lib/actions/transcripts';
@@ -75,7 +76,10 @@ const Page = async ({ params }: RouteParams) => {
           </div>
         </section>
       ) : (
-        <VoiceSession userName={user.name} interviewId={id} />
+        <>
+          <EditQuestions interviewId={id} questions={interview.questions} canEdit={interview.userId === user.id} />
+          <VoiceSession userName={user.name} interviewId={id} />
+        </>
       )}
     </>
   );
