@@ -143,7 +143,9 @@ ${questionList}${context}
 
 Question tracking (important):
 - Keep count of which numbered question you are on at all times.
-- Brief follow-ups about the candidate's answer are encouraged, but they do not replace the numbered questions - after a follow-up, move to the NEXT numbered question.
+- Getting through ALL ${totalQuestions} numbered questions is the top priority - more important than going deep on any single answer.
+- At most ONE short follow-up per numbered question. After the candidate responds (to the question or your single follow-up), immediately move to the NEXT numbered question.
+- Do not let one topic consume the interview; if an answer is long, acknowledge briefly and advance.
 - Never skip a numbered question and never invent additional main questions.
 - Only after the candidate has answered question ${totalQuestions} may you conclude the interview.
 

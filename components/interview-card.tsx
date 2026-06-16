@@ -10,20 +10,28 @@ const InterviewCard = ({
   interview,
   report,
   deletable = false,
+  community = false,
 }: {
   interview: Interview;
   report: InterviewReport | null;
   deletable?: boolean;
+  community?: boolean;
 }) => {
   const { id, role, type, techstack, createdAt } = interview;
   const normalizedType = /mix/gi.test(type) ? 'Mixed' : type;
   const formattedDate = dayjs(report?.createdAt || createdAt).format('MMM D, YYYY');
   const accent = roleAccent(role);
+  // Community interviews are personalized to the viewer (their resume) rather
+  // than taken verbatim, so they route through the new-interview form.
+  const href = community
+    ? `/interviews/new?template=${id}`
+    : report ? `/interviews/${id}/report` : `/interviews/${id}`;
+  const cta = community ? 'Personalize & start' : report ? 'View report' : 'Start';
 
   return (
     <div className="relative w-[360px] max-sm:w-full">
       <Link
-        href={report ? `/interviews/${id}/report` : `/interviews/${id}`}
+        href={href}
         className="panel panel-hover group flex h-full flex-col gap-5 p-6"
       >
         <div className="flex items-center gap-3">
@@ -58,7 +66,7 @@ const InterviewCard = ({
         <div className="mt-auto flex items-center justify-between">
           <TechBadges stack={techstack} max={3} />
           <span className="flex items-center gap-1 text-sm font-semibold text-spark-300 group-hover:gap-2 transition-all">
-            {report ? 'View report' : 'Start'} <ArrowUpRight className="size-4" />
+            {cta} <ArrowUpRight className="size-4" />
           </span>
         </div>
       </Link>

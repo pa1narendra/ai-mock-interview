@@ -4,6 +4,16 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.5.1] - 2026-06-13
+
+### Fixed
+- The interviewer no longer cuts you off mid-answer during natural pauses (relaxed voice turn-detection: longer silence window + lower end-of-speech sensitivity).
+- The interviewer now reliably works through all of its questions (follow-ups are capped to one per question so a single topic can't eat the session).
+- Completing an interview and pressing Back now shows the updated attempt/score immediately, instead of stale pre-attempt state until a manual refresh.
+
+### Changed
+- Opening a Community interview now personalizes it to you: it pre-fills the role and asks for *your* resume, then generates questions from your background as your own interview. The original is never modified.
+
 ## [0.5.0] - 2026-06-13
 
 ### Added

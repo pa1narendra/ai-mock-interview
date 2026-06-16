@@ -1,6 +1,7 @@
 'use server';
 
 import { and, desc, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
@@ -51,6 +52,10 @@ export async function saveTranscript(params: { interviewId: string; transcript: 
             attempt: attemptsUsed + 1,
             turns: transcript,
         }).returning({ id: transcripts.id, attempt: transcripts.attempt });
+
+        // Back-navigation should reflect the consumed attempt without a refresh.
+        revalidatePath(`/interviews/${interviewId}`);
+        revalidatePath("/dashboard");
 
         return { success: true as const, transcriptId: row.id, attempt: row.attempt };
     } catch (e) {

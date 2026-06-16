@@ -1,6 +1,7 @@
 'use server';
 
 import { and, desc, eq, inArray } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
@@ -133,6 +134,11 @@ export async function createReport(transcriptId: string) {
         await db.update(transcripts)
             .set({ status: "reported" })
             .where(eq(transcripts.id, transcript.id));
+
+        // Refresh cached pages so back-navigation shows the new attempt/score.
+        revalidatePath(`/interviews/${transcript.interviewId}`);
+        revalidatePath(`/interviews/${transcript.interviewId}/report`);
+        revalidatePath("/dashboard");
 
         return { success: true as const, reportId: report.id, attempt: transcript.attempt };
     } catch (e) {

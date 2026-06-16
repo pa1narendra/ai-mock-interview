@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, type LiveConnectConfig } from "@google/genai";
+import { GoogleGenAI, Modality, EndSensitivity, type LiveConnectConfig } from "@google/genai";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getInterview } from "@/lib/actions/interviews";
 import { getAttemptsUsed } from "@/lib/actions/transcripts";
@@ -57,12 +57,14 @@ export async function POST(request: Request) {
     },
     inputAudioTranscription: {},
     outputAudioTranscription: {},
-    // Tighten turn-taking: respond ~0.5s after the candidate stops
-    // speaking instead of the ~0.8s default.
+    // Turn-taking: wait for a real pause (~1.5s of silence) and use low
+    // end-of-speech sensitivity so natural pauses mid-answer don't get
+    // mistaken for the candidate finishing their turn.
     realtimeInputConfig: {
       automaticActivityDetection: {
-        silenceDurationMs: 500,
-        prefixPaddingMs: 100,
+        silenceDurationMs: 1500,
+        prefixPaddingMs: 300,
+        endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
       },
     },
     contextWindowCompression: { slidingWindow: {} },

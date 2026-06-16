@@ -71,7 +71,7 @@ const Page = async () => {
         <div className="flex flex-wrap gap-5 max-lg:flex-col items-stretch">
           {(communityInterviews ?? []).length > 0 ? (
             communityInterviews?.map((interview) => (
-              <InterviewCard interview={interview} report={reports[interview.id] ?? null} key={interview.id} />
+              <InterviewCard interview={interview} report={null} community key={interview.id} />
             ))
           ) : (
             <p className="text-mist-500">No community interviews yet - yours could be the first.</p>

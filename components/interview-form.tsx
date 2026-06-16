@@ -28,11 +28,24 @@ const typeOptions = [
 
 type Mode = "targeted" | "quick"
 
-interface InterviewFormProps {
-  savedResume: { fileName: string; updatedAt: string } | null
+interface InterviewTemplate {
+  role: string
+  level: string
+  type: string
+  techstack: string[]
+  voice: string | null
 }
 
-const InterviewForm = ({ savedResume }: InterviewFormProps) => {
+interface InterviewFormProps {
+  savedResume: { fileName: string; updatedAt: string } | null
+  template?: InterviewTemplate | null
+}
+
+const LEVELS = ["junior", "mid", "senior"] as const
+const TYPES = ["technical", "behavioural", "mixed"] as const
+const VOICES = ["Aoede", "Kore", "Puck", "Charon"] as const
+
+const InterviewForm = ({ savedResume, template = null }: InterviewFormProps) => {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>("targeted")
   const [resumeFile, setResumeFile] = useState<File | null>(null)
@@ -42,13 +55,13 @@ const InterviewForm = ({ savedResume }: InterviewFormProps) => {
   const form = useForm<InterviewFormValues>({
     resolver: zodResolver(interviewFormSchema),
     defaultValues: {
-      role: "",
-      level: "junior",
-      type: "mixed",
-      techstack: "",
+      role: template?.role ?? "",
+      level: template && (LEVELS as readonly string[]).includes(template.level) ? (template.level as typeof LEVELS[number]) : "junior",
+      type: template && (TYPES as readonly string[]).includes(template.type) ? (template.type as typeof TYPES[number]) : "mixed",
+      techstack: template?.techstack.join(", ") ?? "",
       amount: 5,
       jd: "",
-      voice: "Aoede",
+      voice: template?.voice && (VOICES as readonly string[]).includes(template.voice) ? (template.voice as typeof VOICES[number]) : "Aoede",
     },
   })
 
@@ -112,6 +125,11 @@ const InterviewForm = ({ savedResume }: InterviewFormProps) => {
 
   return (
     <div className="panel w-full max-w-xl p-10 fade-up">
+      {template && (
+        <div className="mb-6 rounded-xl border border-spark-500/25 bg-spark-500/10 px-4 py-3 text-sm text-mist-200">
+          Personalizing the <span className="font-semibold capitalize text-spark-300">{template.role}</span> interview for you - add your resume below so the questions match your experience.
+        </div>
+      )}
       <div className="mb-7 grid grid-cols-2 gap-2 rounded-full border border-white/10 bg-white/[0.04] p-1">
         {([
           { key: "targeted", label: "Target a job" },
