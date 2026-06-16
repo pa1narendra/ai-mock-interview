@@ -24,7 +24,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # `npm install` (not `npm ci`) so platform-specific optional binaries
+        # (esbuild/@emnapi) resolve on the Linux runner even though the lockfile
+        # is generated on Windows. Avoids cross-platform `npm ci` sync failures.
+        run: npm install --no-audit --no-fund
 
       - name: Lint
         run: npm run lint
