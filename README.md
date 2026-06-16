@@ -81,3 +81,6 @@ lib/actions/                       # server actions: auth/session, interviews, r
 | `npm run build` | Production build (TypeScript enforced) |
 | `npm start` | Serve the production build |
 | `npm run lint` | ESLint |
+
+
+Old URL is ai-mock-interview-one-cyan.vercel.app
