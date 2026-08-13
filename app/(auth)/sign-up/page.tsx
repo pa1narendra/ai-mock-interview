@@ -5,8 +5,9 @@ export const metadata: Metadata = {
   title: 'Sign Up',
 }
 
-const Page = () => {
-  return <AuthForm type="sign-up"/>
+const Page = async ({ searchParams }: { searchParams: Promise<{ ref?: string }> }) => {
+  const { ref } = await searchParams
+  return <AuthForm type="sign-up" referralCode={ref} />
 }
 
 export default Page

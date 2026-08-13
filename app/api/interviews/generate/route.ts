@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { interviews, resumes } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
@@ -10,6 +10,7 @@ import {
 import { buildGenerationPrompt } from "@/lib/ai/prompts";
 import { resilientGenerateObject } from "@/lib/ai/generate";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { getPermissions } from "@/lib/permissions";
 import { type ModelMessage } from "ai";
 import { z } from "zod";
 
@@ -70,12 +71,39 @@ export async function POST(request: Request) {
     );
   }
 
-  // Only valid requests consume a rate-limit slot.
-  const limited = await checkRateLimit(user.id, "generate", 10);
-  if (!limited.ok) {
+  // Only valid requests consume a rate-limit slot: hourly burst + daily cost
+  // cap. The hourly check short-circuits so a blocked request doesn't also
+  // burn a slot in the daily counter.
+  const hourly = await checkRateLimit(user.id, "generate", 10);
+  if (!hourly.ok) {
     return Response.json(
       { success: false, message: "Too many interviews generated. Try again in an hour." },
       { status: 429 }
+    );
+  }
+  const daily = await checkRateLimit(user.id, "generate_day", 40, "1 day");
+  if (!daily.ok) {
+    return Response.json(
+      { success: false, message: "You've hit today's interview-generation limit. Please try again tomorrow." },
+      { status: 429 }
+    );
+  }
+
+  // Tier cap on how many interviews a user may own (Normal 5 / Pro 20).
+  const perms = getPermissions(user);
+  const [{ count: ownedInterviews }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(interviews)
+    .where(eq(interviews.userId, user.id));
+  if (ownedInterviews >= perms.maxInterviews) {
+    return Response.json(
+      {
+        success: false,
+        message: perms.isPro
+          ? `You've reached your limit of ${perms.maxInterviews} interviews.`
+          : `You've reached the free limit of ${perms.maxInterviews} interviews. Refer a friend who completes an interview to unlock Pro (20).`,
+      },
+      { status: 403 }
     );
   }
 
@@ -204,7 +232,7 @@ export async function POST(request: Request) {
         jdText: hasJd ? jd : null,
         resumeSnapshot,
         fitSnapshot,
-        voice: voice ?? null,
+        voice: perms.canChooseVoice ? (voice ?? null) : null,
       })
       .returning({ id: interviews.id });
 

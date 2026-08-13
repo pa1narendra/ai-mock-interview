@@ -10,6 +10,12 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  // --- Referral-earned Pro tier (app-managed; Better Auth ignores these) ---
+  isPro: boolean("is_pro").notNull().default(false),        // admin override
+  referralCode: text("referral_code").unique(),             // this user's invite code
+  referredBy: text("referred_by"),                          // referrer's user id
+  referralCount: integer("referral_count").notNull().default(0), // converted referrals
+  referralCredited: boolean("referral_credited").notNull().default(false), // did this user credit their referrer yet
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

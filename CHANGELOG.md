@@ -4,6 +4,29 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.6.0] - 2026-08-07
+
+### Added
+- **Full visual redesign** — a plain, editorial monochrome identity with light + dark themes (toggle in the nav, light by default), a cool slate palette, one cobalt-blue accent for everything interactive plus a violet highlight for hero emphasis (the key headline word and the primary action), Fraunces + Inter typography, and a new wordmark-and-live-dot logo. No gradients, no glow.
+- **Referral-earned Pro tier** (no payments) — you unlock Pro when a friend joins with your invite link and completes an interview, or when an owner grants it. Pro unlocks interviewer-voice selection, question preview, a PRO badge, community-interview customization, and higher limits.
+- **Invite a friend** — a personal referral link and conversion count on your profile.
+- **Admin page** (`/admin`, owner-only) — lists every user with a per-user Pro toggle.
+- **Tier-based permission system** — restricted features are locked by default and enforced server-side, not just hidden in the UI.
+- **Four-tier score colours** — green, yellow, red, and grey (worst) across cards, reports, and trends.
+
+### Changed
+- Interviewer-voice selection and question preview/edit are now Pro/owner-only (hidden for the free tier).
+- Interview-creation and attempt limits are now per-tier: Normal 5 interviews / 3 attempts, Pro 20 / 5.
+- Sign out now appears only on the dashboard; the tech-stack `+N` reveals the full list on hover.
+- Theme follows a persisted light/dark choice instead of being forced dark.
+
+### Fixed
+- Resolved a theme-toggle hydration mismatch (server and client now agree via a mount gate).
+
+### Ops
+- New DB migration for the referral/Pro columns: `node apply-referral-pro.mjs` (idempotent).
+- New environment variable `OWNER_EMAIL` designates the owner (Admin access + all features).
+
 ## [0.5.1] - 2026-06-13
 
 ### Fixed

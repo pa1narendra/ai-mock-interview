@@ -1,11 +1,33 @@
 'use server';
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { interviews, reports, transcripts } from "@/db/schema";
+import { interviews, reports, transcripts, user } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
-import { MAX_INTERVIEW_ATTEMPTS } from "@/lib/schemas";
+import { getPermissions } from "@/lib/permissions";
+
+// Referral reward: the first time a referred user completes an interview, credit
+// the person who referred them (once). The credit flag is flipped atomically so
+// two concurrent completions can't double-count.
+async function creditReferrerOnce(userId: string): Promise<void> {
+    try {
+        const flipped = await db
+            .update(user)
+            .set({ referralCredited: true })
+            .where(and(eq(user.id, userId), eq(user.referralCredited, false), isNotNull(user.referredBy)))
+            .returning({ referredBy: user.referredBy });
+        const referrerId = flipped[0]?.referredBy;
+        if (referrerId) {
+            await db
+                .update(user)
+                .set({ referralCount: sql`${user.referralCount} + 1` })
+                .where(eq(user.id, referrerId));
+        }
+    } catch {
+        // referral columns not migrated yet - skip silently.
+    }
+}
 
 // Attempts are counted from transcripts (an interview you completed consumes
 // an attempt even if report generation failed), with legacy reports counted
@@ -44,7 +66,7 @@ export async function saveTranscript(params: { interviewId: string; transcript: 
         if (!interview) return { success: false as const };
 
         const attemptsUsed = await countAttempts(interviewId, user.id);
-        if (attemptsUsed >= MAX_INTERVIEW_ATTEMPTS) return { success: false as const };
+        if (attemptsUsed >= getPermissions(user).maxAttempts) return { success: false as const };
 
         const [row] = await db.insert(transcripts).values({
             interviewId,
@@ -52,6 +74,9 @@ export async function saveTranscript(params: { interviewId: string; transcript: 
             attempt: attemptsUsed + 1,
             turns: transcript,
         }).returning({ id: transcripts.id, attempt: transcripts.attempt });
+
+        // Completing an interview is what converts a referral.
+        await creditReferrerOnce(user.id);
 
         // Back-navigation should reflect the consumed attempt without a refresh.
         revalidatePath(`/interviews/${interviewId}`);

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Loader2, Sparkles } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { createReport } from "@/lib/actions/reports"
 
 const GenerateReportButton = ({ transcriptId, interviewId }: { transcriptId: string; interviewId: string }) => {
@@ -30,9 +30,7 @@ const GenerateReportButton = ({ transcriptId, interviewId }: { transcriptId: str
           <Loader2 className="size-4 animate-spin" /> Generating report
         </>
       ) : (
-        <>
-          <Sparkles className="size-4" /> Generate report
-        </>
+        "Generate report"
       )}
     </button>
   )

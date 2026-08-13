@@ -2,14 +2,18 @@ import { GoogleGenAI, Modality, EndSensitivity, type LiveConnectConfig } from "@
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getInterview } from "@/lib/actions/interviews";
 import { getAttemptsUsed } from "@/lib/actions/transcripts";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { getPermissions } from "@/lib/permissions";
 import { buildInterviewerPrompt, LIVE_MODEL, LIVE_VOICE } from "@/lib/ai/prompts";
-import { MAX_INTERVIEW_ATTEMPTS } from "@/lib/schemas";
 import { z } from "zod";
 
 const requestSchema = z.object({
   interviewId: z.string().min(1).max(128),
   resumeHandle: z.string().max(512).optional(),
 });
+
+// Per-user daily voice-session cap (Live API is the main cost driver).
+const DAILY_VOICE_SESSIONS = 10;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -36,11 +40,22 @@ export async function POST(request: Request) {
 
   // Resuming an in-progress session (resumeHandle) is not a new attempt.
   if (!parsed.data.resumeHandle) {
+    const maxAttempts = getPermissions(user).maxAttempts;
     const attemptsUsed = await getAttemptsUsed(interview.id);
-    if (attemptsUsed >= MAX_INTERVIEW_ATTEMPTS) {
+    if (attemptsUsed >= maxAttempts) {
       return Response.json(
-        { success: false, message: `You've used all ${MAX_INTERVIEW_ATTEMPTS} attempts for this interview.` },
+        { success: false, message: `You've used all ${maxAttempts} attempts for this interview.` },
         { status: 403 }
+      );
+    }
+
+    // Daily cap on voice sessions - the Live API is the expensive path, so
+    // bound per-user cost even across many interviews.
+    const voiceLimit = await checkRateLimit(user.id, "voice_day", DAILY_VOICE_SESSIONS, "1 day");
+    if (!voiceLimit.ok) {
+      return Response.json(
+        { success: false, message: `You've reached today's limit of ${DAILY_VOICE_SESSIONS} interviews. Come back tomorrow.` },
+        { status: 429 }
       );
     }
   }

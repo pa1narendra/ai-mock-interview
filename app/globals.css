@@ -2,244 +2,383 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-  /* Mockstar palette — emerald on deep slate */
-  --color-ink-950: #050a12;
-  --color-ink-900: #0a1220;
-  --color-ink-800: #101a2c;
-  --color-ink-700: #1b2840;
-
-  --color-mist-100: #e6edf7;
-  --color-mist-300: #aab8cf;
-  --color-mist-500: #6b7c97;
-
-  --color-spark-300: #5eead4;
-  --color-spark-400: #34d399;
-  --color-spark-500: #10b981;
-  --color-spark-600: #059669;
-
-  --color-ember-400: #fbbf24;
-  --color-alert-400: #f87171;
-  --color-alert-500: #ef4444;
-
-  --font-display: var(--font-space-grotesk), sans-serif;
-  --font-body: var(--font-inter), sans-serif;
-}
+/* ------------------------------------------------------------------ *
+ * Mockstar — plain, editorial, monochrome.
+ * Cool white ↔ cool slate-black. No saturated accents, nothing glows.
+ * Hierarchy comes from type, space, and weight — not color.
+ * Driven by CSS variables so light/dark theme for free.
+ * ------------------------------------------------------------------ */
 
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.13 0.02 255);
-  --foreground: oklch(0.93 0.01 250);
-  --card: oklch(0.16 0.02 255);
-  --card-foreground: oklch(0.93 0.01 250);
-  --popover: oklch(0.16 0.02 255);
-  --popover-foreground: oklch(0.93 0.01 250);
-  --primary: oklch(0.77 0.15 165);
-  --primary-foreground: oklch(0.15 0.02 255);
-  --secondary: oklch(0.22 0.02 255);
-  --secondary-foreground: oklch(0.93 0.01 250);
-  --muted: oklch(0.22 0.02 255);
-  --muted-foreground: oklch(0.65 0.02 250);
-  --accent: oklch(0.22 0.02 255);
-  --accent-foreground: oklch(0.93 0.01 250);
-  --destructive: oklch(0.65 0.2 25);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.77 0.15 165 / 50%);
+  --radius: 0.85rem;
+
+  /* Light — crisp cool white */
+  --background: #fafbfc;
+  --foreground: #10131a;
+  --text-secondary: #464c56;
+  --muted-foreground: #858b95;
+
+  --surface: #ffffff;
+  --surface-raised: #f1f3f5;
+  --card: #ffffff;
+
+  --border: #e2e5ea;
+  --input: #eaedf1;
+  --ring: #4666e6;
+
+  /* Brand accent — a lighter cornflower blue. The one highlight/interactive
+     colour: buttons, links, focus, the mark, the chart. Text stays ink,
+     surfaces stay white. */
+  --primary: #4666e6;
+  --primary-hover: #3a56cf;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e8edfd;
+
+  /* Highlight — a violet reserved for hero emphasis (the top action on a
+     page, the accent phrase in a headline). Blue = everyday interactive. */
+  --highlight: #7440e0;
+  --highlight-hover: #6333c9;
+  --highlight-foreground: #ffffff;
+  --highlight-soft: #efe9fc;
+
+  --secondary: #464c56;
+  --secondary-foreground: #ffffff;
+  --secondary-soft: #eef0f3;
+
+  --accent: #2a2f3a;
+  --accent-foreground: #fafbfc;
+
+  --muted: #eef0f3;
+
+  --destructive: #b5384a;   /* muted crimson — danger only */
+  --destructive-foreground: #fafbfc;
+
+  /* Functional status colours — muted, used only to convey meaning
+     (scores, trends, matched vs missing), never for decoration. */
+  --success: #3f7d5f;       /* muted green — strong / matched / up */
+  --success-soft: #e6efe9;
+  --warning: #a9772b;       /* muted amber — middling / gaps */
+  --warning-soft: #f3ece0;
+  --danger: #b5384a;        /* muted red — poor */
+  --danger-soft: #f3e3e5;
+  --worst: #10131a;         /* ink black — worst (grey in dark) */
+  --worst-soft: #e9eaec;
+
+  --shadow-sm: 0 1px 2px rgba(16, 19, 26, 0.05);
+  --shadow-md: 0 3px 10px rgba(16, 19, 26, 0.07), 0 1px 3px rgba(16, 19, 26, 0.05);
+  --shadow-lg: 0 10px 28px rgba(16, 19, 26, 0.10), 0 3px 8px rgba(16, 19, 26, 0.05);
 }
 
 .dark {
-  --background: oklch(0.13 0.02 255);
-  --foreground: oklch(0.93 0.01 250);
+  /* Dark — cool slate near-black */
+  --background: #0c0e12;
+  --foreground: #e7eaef;
+  --text-secondary: #9aa1ac;
+  --muted-foreground: #6a7180;
+
+  --surface: #14171c;
+  --surface-raised: #1b1f26;
+  --card: #14171c;
+
+  --border: #272c34;
+  --input: #21262d;
+  --ring: #8aa1ff;
+
+  --primary: #8aa1ff;
+  --primary-hover: #a1b4ff;
+  --primary-foreground: #0c0e12;
+  --primary-soft: #1e2748;
+
+  --highlight: #b59cff;
+  --highlight-hover: #c7b4ff;
+  --highlight-foreground: #0c0e12;
+  --highlight-soft: #241d40;
+
+  --secondary: #9aa1ac;
+  --secondary-foreground: #0c0e12;
+  --secondary-soft: #1b1f26;
+
+  --accent: #cdd3db;
+  --accent-foreground: #0c0e12;
+
+  --muted: #1b1f26;
+
+  --destructive: #cf6b78;
+  --destructive-foreground: #0c0e12;
+
+  --success: #6fb08c;
+  --success-soft: #1a231e;
+  --warning: #c9a25c;
+  --warning-soft: #241f16;
+  --danger: #cf6b78;
+  --danger-soft: #241619;
+  --worst: #6a7180;         /* grey — worst, in dark */
+  --worst-soft: #1b1f26;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 3px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 34px rgba(0, 0, 0, 0.55);
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 5px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  /* Semantic tokens → utilities */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
   --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
+  --color-card-foreground: var(--foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-highlight: var(--highlight);
+  --color-highlight-hover: var(--highlight-hover);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-highlight-soft: var(--highlight-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-text-secondary: var(--text-secondary);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-worst: var(--worst);
+  --color-worst-soft: var(--worst-soft);
+
+  /* Legacy alias ramps → neutral vars (being swept out during rollout). */
+  --color-ink-950: var(--background);
+  --color-ink-900: var(--surface);
+  --color-ink-800: var(--surface-raised);
+  --color-ink-700: var(--border);
+
+  --color-mist-100: var(--foreground);
+  --color-mist-200: var(--foreground);
+  --color-mist-300: var(--text-secondary);
+  --color-mist-400: var(--muted-foreground);
+  --color-mist-500: var(--muted-foreground);
+  --color-mist-600: var(--muted-foreground);
+
+  --color-spark-300: var(--foreground);
+  --color-spark-400: var(--foreground);
+  --color-spark-500: var(--primary);
+  --color-spark-600: var(--primary-hover);
+
+  --color-ember-400: var(--accent);
+  --color-alert-400: var(--destructive);
+  --color-alert-500: var(--destructive);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: light dark;
   }
 
   body {
     @apply text-foreground font-body antialiased min-h-screen;
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(16, 185, 129, 0.13), transparent),
-      radial-gradient(ellipse 60% 40% at 90% 110%, rgba(45, 212, 191, 0.07), transparent),
-      var(--color-ink-950);
+    background-color: var(--background);
   }
 
   h1, h2, h3, h4 {
-    @apply font-display tracking-tight text-mist-100;
+    @apply font-display tracking-tight text-foreground;
+    font-optical-sizing: auto;
   }
-  h1 {
-    @apply text-4xl font-semibold;
-  }
-  h2 {
-    @apply text-3xl font-semibold;
-  }
-  h3 {
-    @apply text-2xl font-semibold;
-  }
-  p, li {
-    @apply text-mist-300;
-  }
-  ul {
-    @apply list-disc list-inside;
+  h1 { @apply text-4xl font-semibold; }
+  h2 { @apply text-3xl font-semibold; }
+  h3 { @apply text-2xl font-semibold; }
+  p, li { @apply text-text-secondary; }
+  ul { @apply list-disc list-inside; }
+
+  ::selection {
+    background: color-mix(in oklab, var(--foreground) 14%, transparent);
   }
 }
 
 @layer components {
   /* Surfaces */
   .panel {
-    @apply rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-sm;
+    @apply rounded-2xl border border-border bg-card;
+    box-shadow: var(--shadow-sm);
   }
 
   .panel-hover {
-    @apply transition-colors duration-200 hover:border-spark-500/30 hover:bg-white/[0.06];
+    @apply transition-all duration-200;
+  }
+  .panel-hover:hover {
+    border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
   }
 
-  /* Buttons */
-  .btn-spark {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-spark-500 px-6 py-2.5 text-sm font-semibold text-ink-950 transition-all duration-150 hover:bg-spark-400 hover:shadow-[0_0_24px_rgba(16,185,129,0.35)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer;
+  /* Buttons — solid ink, no glow */
+  .btn-spark,
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none cursor-pointer;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-spark:hover,
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-highlight {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none cursor-pointer;
+    background: var(--highlight);
+    color: var(--highlight-foreground);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-highlight:hover {
+    background: var(--highlight-hover);
+    box-shadow: var(--shadow-md);
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-transparent px-6 py-2.5 text-sm font-semibold text-mist-100 transition-colors duration-150 hover:border-spark-500/40 hover:text-spark-300 disabled:opacity-50 cursor-pointer;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-6 py-2.5 text-sm font-semibold transition-colors duration-150 disabled:opacity-50 cursor-pointer;
+    border-color: var(--border);
+    color: var(--foreground);
+    background: transparent;
+  }
+  .btn-outline:hover {
+    border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+    color: var(--primary);
+    background: var(--surface-raised);
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-alert-500/90 px-6 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-alert-400 cursor-pointer;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-colors duration-150 cursor-pointer;
+    background: var(--destructive);
+    color: var(--destructive-foreground);
+  }
+  .btn-danger:hover {
+    background: color-mix(in oklab, var(--destructive) 88%, black);
   }
 
-  /* Typography helpers */
+  /* Wordmark accent = plain ink, no gradient. */
   .text-spark-gradient {
-    @apply bg-gradient-to-r from-spark-300 to-spark-500 bg-clip-text text-transparent;
+    color: var(--foreground);
   }
 
   .status-pill {
-    @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-mist-300;
+    @apply inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-medium uppercase tracking-widest;
+    border-color: var(--border);
+    background: var(--surface-raised);
+    color: var(--text-secondary);
   }
 
   /* Forms */
   .field-input {
-    @apply w-full rounded-xl border border-white/10 bg-ink-900/80 px-4 py-3 text-sm text-mist-100 placeholder:text-mist-500 focus:border-spark-500/50 focus:outline-none focus:ring-2 focus:ring-spark-500/20 transition-colors;
+    @apply w-full rounded-xl border px-4 py-3 text-sm transition-colors focus:outline-none;
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--foreground);
+  }
+  .field-input::placeholder {
+    color: var(--muted-foreground);
+  }
+  .field-input:focus {
+    border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
   }
 
   .field-label {
-    @apply text-sm font-medium text-mist-300;
+    @apply text-sm font-medium;
+    color: var(--text-secondary);
   }
 
-  /* Voice orb */
+  /* Voice presence — a plain, soft cool-slate pebble. No glow. */
   .orb {
     @apply relative flex items-center justify-center rounded-full size-40;
-    background: radial-gradient(circle at 35% 30%, rgba(94, 234, 212, 0.9), rgba(16, 185, 129, 0.75) 45%, rgba(5, 150, 105, 0.5) 70%, rgba(5, 10, 18, 0.2));
-    box-shadow:
-      0 0 60px rgba(16, 185, 129, 0.25),
-      inset 0 0 40px rgba(5, 10, 18, 0.4);
-    transition: box-shadow 0.4s ease, filter 0.4s ease;
+    background: var(--foreground);
+    box-shadow: var(--shadow-lg), inset 0 -6px 14px rgba(0, 0, 0, 0.18);
+    transition: transform 0.5s ease, box-shadow 0.5s ease;
   }
 
   .orb-idle {
-    filter: saturate(0.35) brightness(0.75);
+    opacity: 0.55;
   }
 
   .orb-connecting {
-    animation: orb-breathe 1.2s ease-in-out infinite;
-    filter: saturate(0.7);
+    animation: orb-breathe 1.6s ease-in-out infinite;
+    opacity: 0.8;
   }
 
   .orb-live {
-    animation: orb-breathe 3.2s ease-in-out infinite;
+    animation: orb-breathe 4s ease-in-out infinite;
   }
 
   .orb-speaking {
-    box-shadow:
-      0 0 90px rgba(16, 185, 129, 0.5),
-      inset 0 0 40px rgba(5, 10, 18, 0.3);
+    animation: orb-breathe 2.4s ease-in-out infinite;
   }
 
   .orb-ring {
-    @apply absolute inset-0 rounded-full border-2 border-spark-400/60;
-    animation: orb-ripple 1.6s ease-out infinite;
+    @apply absolute inset-0 rounded-full;
+    border: 1.5px solid color-mix(in oklab, var(--foreground) 35%, transparent);
+    animation: orb-ripple 2.4s ease-out infinite;
   }
 
   .orb-ring-delayed {
-    animation-delay: 0.8s;
+    animation-delay: 1.2s;
   }
 }
 
 @utility fade-up {
-  animation: fade-up 0.35s ease-out;
+  animation: fade-up 0.4s ease-out;
 }
 
 @keyframes orb-breathe {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
 }
 
 @keyframes orb-ripple {
-  from {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-  to {
-    transform: scale(1.55);
-    opacity: 0;
-  }
+  from { transform: scale(1); opacity: 0.5; }
+  to { transform: scale(1.5); opacity: 0; }
 }
 
 @keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Print / "Download PDF": flatten the dark theme to a clean light document. */
+/* Print / "Download PDF": clean light document regardless of theme. */
 @media print {
-  .no-print {
-    display: none !important;
-  }
-  body {
-    background: #ffffff !important;
-  }
+  .no-print { display: none !important; }
+  body { background: #ffffff !important; }
   * {
-    color: #111827 !important;
+    color: #191815 !important;
     box-shadow: none !important;
   }
   .panel {
-    border: 1px solid #d1d5db !important;
+    border: 1px solid #d9d5cc !important;
     background: #ffffff !important;
     break-inside: avoid;
   }

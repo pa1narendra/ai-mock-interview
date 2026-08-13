@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 };
 
 const scoreTone = (score: number) =>
-  score >= 75 ? "text-spark-400" : score >= 50 ? "text-ember-400" : "text-alert-400";
+  score >= 75 ? "text-success" : score >= 50 ? "text-warning" : score >= 25 ? "text-danger" : "text-worst";
 const barTone = (score: number) =>
-  score >= 75 ? "bg-spark-500" : score >= 50 ? "bg-ember-400" : "bg-alert-400";
+  score >= 75 ? "bg-success" : score >= 50 ? "bg-warning" : score >= 25 ? "bg-danger" : "bg-worst";
 
 const Page = async ({ params }: RouteParams) => {
   const { shareId } = await params;
@@ -29,7 +29,7 @@ const Page = async ({ params }: RouteParams) => {
 
       <div className="text-center space-y-2 fade-up">
         <h1>
-          Interview report - <span className="capitalize text-spark-gradient">{report.role}</span>
+          Interview report - <span className="capitalize text-highlight">{report.role}</span>
         </h1>
         <p className="text-sm text-mist-500">{dayjs(report.createdAt).format("MMM D, YYYY")} · shared read-only</p>
       </div>
@@ -52,7 +52,7 @@ const Page = async ({ params }: RouteParams) => {
               <p className="font-medium text-mist-100">{category.name}</p>
               <span className={`font-semibold ${scoreTone(category.score)}`}>{category.score}</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div className={`h-full rounded-full ${barTone(category.score)}`} style={{ width: `${Math.max(2, Math.min(100, category.score))}%` }} />
             </div>
             <p className="text-sm">{category.comment}</p>
@@ -64,7 +64,7 @@ const Page = async ({ params }: RouteParams) => {
         <div className="panel flex flex-col gap-5 px-8 py-6">
           <h3>Question-by-question</h3>
           {report.questionFeedback.map((item, index) => (
-            <div key={index} className="space-y-2 border-t border-white/[0.06] pt-4 first:border-0 first:pt-0">
+            <div key={index} className="space-y-2 border-t border-border pt-4 first:border-0 first:pt-0">
               <div className="flex items-start justify-between gap-4">
                 <p className="font-medium text-mist-100">{index + 1}. {item.question}</p>
                 <span className={`shrink-0 font-semibold ${scoreTone(item.score)}`}>{item.score}/100</span>
@@ -75,7 +75,7 @@ const Page = async ({ params }: RouteParams) => {
         </div>
       )}
 
-      <footer className="mt-auto border-t border-white/[0.06] py-6 text-center text-sm text-mist-500">
+      <footer className="mt-auto border-t border-border py-6 text-center text-sm text-mist-500">
         Generated with Mockstar - AI voice mock interviews
       </footer>
     </main>

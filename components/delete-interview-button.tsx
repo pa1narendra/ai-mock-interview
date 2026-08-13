@@ -29,7 +29,7 @@ const DeleteInterviewButton = ({ id }: { id: string }) => {
       onClick={handleDelete}
       disabled={pending}
       aria-label="Delete interview"
-      className="rounded-full border border-white/10 bg-ink-900/80 p-2 text-mist-500 backdrop-blur transition-colors hover:border-alert-400/40 hover:text-alert-400 disabled:opacity-50"
+      className="rounded-full border border-border bg-surface/80 p-2 text-muted-foreground backdrop-blur transition-colors hover:border-destructive/50 hover:text-destructive disabled:opacity-50"
     >
       {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
     </button>

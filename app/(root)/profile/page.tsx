@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getMyResumeMeta } from "@/lib/actions/resumes";
+import { getOrCreateReferral } from "@/lib/actions/referral";
 import ProfileResume from "@/components/profile-resume";
+import ReferralCard from "@/components/referral-card";
+import ProBadge from "@/components/pro-badge";
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -12,11 +15,18 @@ const Page = async () => {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
 
-  const resume = await getMyResumeMeta();
+  const [resume, referral] = await Promise.all([getMyResumeMeta(), getOrCreateReferral()]);
 
   return (
     <section className="mx-auto flex w-full max-w-2xl flex-col gap-8 fade-up">
-      <h1>Profile</h1>
+      <div className="flex items-center gap-3">
+        <h1>Profile</h1>
+        {user.isPro && <ProBadge />}
+      </div>
+
+      {referral && (
+        <ReferralCard code={referral.code} referralCount={referral.referralCount} isPro={referral.isPro} />
+      )}
 
       <div className="panel flex flex-col gap-4 px-8 py-6">
         <h3>Account</h3>

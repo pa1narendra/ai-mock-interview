@@ -89,6 +89,8 @@ interface User {
   name: string;
   email: string;
   id: string;
+  // Effective Pro status: admin override OR at least one converted referral.
+  isPro: boolean;
 }
 
 interface RouteParams {

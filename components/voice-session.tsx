@@ -127,7 +127,7 @@ const VoiceSession = ({ userName, interviewId }: { userName: string; interviewId
         </button>
       ) : !isLive ? (
         <button
-          className="btn-spark min-w-44"
+          className="btn-highlight min-w-44"
           onClick={() => {
             hasGeneratedReport.current = false;
             transcriptIdRef.current = null;

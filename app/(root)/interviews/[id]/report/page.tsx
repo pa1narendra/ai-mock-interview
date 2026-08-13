@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/lib/actions/auth';
 import { getInterview } from '@/lib/actions/interviews';
 import { getReportsForInterview } from '@/lib/actions/reports';
 import { getPendingTranscripts, getTranscriptTurns } from '@/lib/actions/transcripts';
-import { MAX_INTERVIEW_ATTEMPTS } from '@/lib/schemas';
+import { getPermissions } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import GenerateReportButton from '@/components/generate-report-button';
 import TranscriptBubbles from '@/components/transcript-bubbles';
@@ -24,16 +24,16 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
 }
 
 const scoreTone = (score: number) =>
-  score >= 75 ? 'text-spark-400' : score >= 50 ? 'text-ember-400' : 'text-alert-400';
+  score >= 75 ? 'text-success' : score >= 50 ? 'text-warning' : score >= 25 ? 'text-danger' : 'text-worst';
 
 const barTone = (score: number) =>
-  score >= 75 ? 'bg-spark-500' : score >= 50 ? 'bg-ember-400' : 'bg-alert-400';
+  score >= 75 ? 'bg-success' : score >= 50 ? 'bg-warning' : score >= 25 ? 'bg-danger' : 'bg-worst';
 
 const deltaBadge = (delta: number) => {
   if (delta > 0)
-    return <span className="flex items-center gap-0.5 text-xs font-semibold text-spark-400"><TrendingUp className="size-3" />+{delta}</span>;
+    return <span className="flex items-center gap-0.5 text-xs font-semibold text-success"><TrendingUp className="size-3" />+{delta}</span>;
   if (delta < 0)
-    return <span className="flex items-center gap-0.5 text-xs font-semibold text-alert-400"><TrendingDown className="size-3" />{delta}</span>;
+    return <span className="flex items-center gap-0.5 text-xs font-semibold text-danger"><TrendingDown className="size-3" />{delta}</span>;
   return <span className="flex items-center gap-0.5 text-xs font-semibold text-mist-500"><Minus className="size-3" />0</span>;
 };
 
@@ -42,6 +42,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
   const { attempt: attemptParam } = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/sign-in');
+  const maxAttempts = getPermissions(user).maxAttempts;
 
   const interview = await getInterview(id);
   if (!interview) redirect('/dashboard');
@@ -56,10 +57,10 @@ const Page = async ({ params, searchParams }: RouteParams) => {
     allReports.length ? allReports[allReports.length - 1].attempt : 0,
     pendingTranscripts.length ? pendingTranscripts[pendingTranscripts.length - 1].attempt : 0
   );
-  const canRetake = attemptsUsed < MAX_INTERVIEW_ATTEMPTS;
+  const canRetake = attemptsUsed < maxAttempts;
 
   const pendingPanel = pendingTranscripts.length > 0 && (
-    <div className="panel flex flex-col gap-4 border-ember-400/30 px-8 py-6">
+    <div className="panel flex flex-col gap-4 border-warning/30 px-8 py-6">
       {pendingTranscripts.map((transcript) => (
         <div key={transcript.id} className="flex items-center justify-between gap-6 max-sm:flex-col max-sm:items-start">
           <div>
@@ -81,7 +82,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
       <section className="mx-auto flex w-full max-w-3xl flex-col gap-8 fade-up">
         <div className="text-center space-y-3">
           <h1>
-            Interview report - <span className="capitalize text-spark-gradient">{interview.role}</span>
+            Interview report - <span className="capitalize text-highlight">{interview.role}</span>
           </h1>
           <p>Your interview is complete and your answers are safe.</p>
         </div>
@@ -105,14 +106,14 @@ const Page = async ({ params, searchParams }: RouteParams) => {
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-8 fade-up">
       <div className="text-center space-y-3">
         <h1>
-          Interview report - <span className="capitalize text-spark-gradient">{interview.role}</span>
+          Interview report - <span className="capitalize text-highlight">{interview.role}</span>
         </h1>
         <div className="flex items-center justify-center gap-6 text-sm text-mist-500">
           <span className="flex items-center gap-1.5">
             <Calendar className="size-4" />
             {dayjs(report.createdAt).format('MMM D, YYYY h:mm A')}
           </span>
-          <span>Attempt {report.attempt} of {MAX_INTERVIEW_ATTEMPTS}</span>
+          <span>Attempt {report.attempt} of {maxAttempts}</span>
         </div>
         {allReports.length > 1 && (
           <div className="flex items-center justify-center gap-2 pt-1">
@@ -124,7 +125,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
                   'rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
                   candidate.attempt === report.attempt
                     ? 'border-spark-500/50 bg-spark-500/15 text-spark-300'
-                    : 'border-white/10 bg-white/[0.04] text-mist-400 hover:text-mist-200'
+                    : 'border-border bg-surface-raised text-mist-400 hover:text-mist-200'
                 )}
               >
                 Attempt {candidate.attempt}
@@ -145,7 +146,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
               return (
                 <div key={candidate.attempt} className="flex items-center gap-3">
                   {index > 0 && <ArrowRight className="size-4 text-mist-500 max-sm:rotate-90" />}
-                  <div className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-3">
+                  <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-surface-raised px-5 py-3">
                     <span className="text-xs uppercase tracking-widest text-mist-500">Attempt {candidate.attempt}</span>
                     <span className={`font-display text-2xl font-bold ${scoreTone(candidate.totalScore)}`}>
                       {candidate.totalScore}
@@ -200,7 +201,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
               <p className="font-medium text-mist-100">{category.name}</p>
               <span className={`font-semibold ${scoreTone(category.score)}`}>{category.score}</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className={`h-full rounded-full ${barTone(category.score)}`}
                 style={{ width: `${Math.max(2, Math.min(100, category.score))}%` }}
@@ -219,7 +220,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
               {report.jdMatch.coverageScore}<span className="text-lg text-mist-500">/100</span>
             </p>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
               className={`h-full rounded-full ${barTone(report.jdMatch.coverageScore)}`}
               style={{ width: `${Math.max(2, Math.min(100, report.jdMatch.coverageScore))}%` }}
@@ -229,7 +230,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
           <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
             <div className="space-y-2">
               <p className="flex items-center gap-2 text-sm font-medium text-mist-100">
-                <TrendingUp className="size-4 text-spark-400" /> Requirements you covered
+                <TrendingUp className="size-4 text-success" /> Requirements you covered
               </p>
               <ul className="space-y-1 text-sm">
                 {report.jdMatch.gapsAddressed.map((item, index) => (
@@ -239,7 +240,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
             </div>
             <div className="space-y-2">
               <p className="flex items-center gap-2 text-sm font-medium text-mist-100">
-                <TrendingDown className="size-4 text-ember-400" /> Still unproven
+                <TrendingDown className="size-4 text-warning" /> Still unproven
               </p>
               <ul className="space-y-1 text-sm">
                 {report.jdMatch.gapsRemaining.map((item, index) => (
@@ -255,12 +256,12 @@ const Page = async ({ params, searchParams }: RouteParams) => {
         <div className="panel flex flex-col gap-5 px-8 py-6">
           <h3>Question-by-question</h3>
           {report.questionFeedback.map((item, index) => (
-            <div key={index} className="space-y-2 border-t border-white/[0.06] pt-4 first:border-0 first:pt-0">
+            <div key={index} className="space-y-2 border-t border-border pt-4 first:border-0 first:pt-0">
               <div className="flex items-start justify-between gap-4">
                 <p className="font-medium text-mist-100">{index + 1}. {item.question}</p>
                 <span className={`shrink-0 font-semibold ${scoreTone(item.score)}`}>{item.score}/100</span>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full rounded-full ${barTone(item.score)}`}
                   style={{ width: `${Math.max(2, Math.min(100, item.score))}%` }}
@@ -268,7 +269,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
               </div>
               <p className="text-sm text-mist-300"><span className="text-mist-500">Your answer:</span> {item.answerSummary}</p>
               <p className="text-sm"><span className="text-mist-500">Feedback:</span> {item.feedback}</p>
-              <p className="text-sm text-spark-300/90"><span className="text-mist-500">A stronger answer:</span> {item.idealAnswer}</p>
+              <p className="text-sm text-text-secondary"><span className="text-muted-foreground">A stronger answer:</span> {item.idealAnswer}</p>
             </div>
           ))}
         </div>
@@ -277,7 +278,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
       {turns.length > 0 && (
         <details className="panel px-8 py-6 group">
           <summary className="flex cursor-pointer items-center gap-2 text-lg font-semibold text-mist-100 marker:content-none">
-            <MessagesSquare className="size-5 text-spark-400" /> Full transcript
+            <MessagesSquare className="size-5 text-muted-foreground" /> Full transcript
             <span className="ml-auto text-sm font-normal text-mist-500 group-open:hidden">Show</span>
             <span className="ml-auto hidden text-sm font-normal text-mist-500 group-open:inline">Hide</span>
           </summary>
@@ -290,7 +291,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
       <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
         <div className="panel flex flex-col gap-3 px-7 py-6">
           <h3 className="flex items-center gap-2 text-lg">
-            <TrendingUp className="size-5 text-spark-400" /> Strengths
+            <TrendingUp className="size-5 text-success" /> Strengths
           </h3>
           <ul className="space-y-1.5 text-sm">
             {report.strengths?.map((strength, index) => (
@@ -301,7 +302,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
 
         <div className="panel flex flex-col gap-3 px-7 py-6">
           <h3 className="flex items-center gap-2 text-lg">
-            <TrendingDown className="size-5 text-ember-400" /> Improve next
+            <TrendingDown className="size-5 text-warning" /> Improve next
           </h3>
           <ul className="space-y-1.5 text-sm">
             {report.areasForImprovement?.map((area, index) => (
@@ -323,7 +324,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
         {report.areasForImprovement.length > 0 && <PracticeGapsButton interviewId={id} />}
         {canRetake ? (
           <Link href={`/interviews/${id}`} className="btn-spark">
-            <RotateCcw className="size-4" /> Retake interview ({MAX_INTERVIEW_ATTEMPTS - attemptsUsed} left)
+            <RotateCcw className="size-4" /> Retake interview ({maxAttempts - attemptsUsed} left)
           </Link>
         ) : (
           <Link href="/interviews/new" className="btn-spark">

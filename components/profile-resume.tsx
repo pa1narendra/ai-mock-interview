@@ -35,7 +35,7 @@ const ProfileResume = ({ meta }: { meta: { fileName: string; updatedAt: string }
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-raised px-4 py-3">
         <span className="flex items-center gap-2 text-sm text-mist-100">
           <FileText className="size-4 text-spark-300" /> {meta.fileName}
           <span className="text-mist-500">· updated {dayjs(meta.updatedAt).format("MMM D, YYYY")}</span>
@@ -45,7 +45,7 @@ const ProfileResume = ({ meta }: { meta: { fileName: string; updatedAt: string }
           onClick={handleDelete}
           disabled={pending}
           aria-label="Delete resume"
-          className="rounded-full border border-white/10 p-2 text-mist-500 transition-colors hover:border-alert-400/40 hover:text-alert-400 disabled:opacity-50"
+          className="rounded-full border border-border p-2 text-mist-500 transition-colors hover:border-alert-400/40 hover:text-alert-400 disabled:opacity-50"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
         </button>

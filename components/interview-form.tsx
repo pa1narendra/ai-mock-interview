@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import dayjs from "dayjs"
-import { FileText, Loader2, Sparkles, Upload, X } from "lucide-react"
+import { FileText, Loader2, Upload, X } from "lucide-react"
 
 import TextField from "./form/text-field"
 import SelectField from "./form/select-field"
@@ -39,13 +39,14 @@ interface InterviewTemplate {
 interface InterviewFormProps {
   savedResume: { fileName: string; updatedAt: string } | null
   template?: InterviewTemplate | null
+  canChooseVoice?: boolean
 }
 
 const LEVELS = ["junior", "mid", "senior"] as const
 const TYPES = ["technical", "behavioural", "mixed"] as const
 const VOICES = ["Aoede", "Kore", "Puck", "Charon"] as const
 
-const InterviewForm = ({ savedResume, template = null }: InterviewFormProps) => {
+const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }: InterviewFormProps) => {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>("targeted")
   const [resumeFile, setResumeFile] = useState<File | null>(null)
@@ -130,7 +131,7 @@ const InterviewForm = ({ savedResume, template = null }: InterviewFormProps) => 
           Personalizing the <span className="font-semibold capitalize text-spark-300">{template.role}</span> interview for you - add your resume below so the questions match your experience.
         </div>
       )}
-      <div className="mb-7 grid grid-cols-2 gap-2 rounded-full border border-white/10 bg-white/[0.04] p-1">
+      <div className="mb-7 grid grid-cols-2 gap-2 rounded-full border border-border bg-surface-raised p-1">
         {([
           { key: "targeted", label: "Target a job" },
           { key: "quick", label: "Quick practice" },
@@ -157,7 +158,9 @@ const InterviewForm = ({ savedResume, template = null }: InterviewFormProps) => 
           placeholder="e.g. Frontend Developer"
         />
 
-        <SelectField control={form.control} name="voice" label="Interviewer voice" options={VOICE_OPTIONS} />
+        {canChooseVoice && (
+          <SelectField control={form.control} name="voice" label="Interviewer voice" options={VOICE_OPTIONS} />
+        )}
 
         <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
           <SelectField control={form.control} name="level" label="Experience level" options={levelOptions} />
@@ -186,7 +189,7 @@ const InterviewForm = ({ savedResume, template = null }: InterviewFormProps) => 
                   </button>
                 </div>
               ) : savedResume && useSaved ? (
-                <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                <div className="flex items-center justify-between rounded-xl border border-border bg-surface-raised px-4 py-3">
                   <span className="flex items-center gap-2 text-sm text-mist-300">
                     <FileText className="size-4 text-spark-300" />
                     Using saved resume: <span className="text-mist-100">{savedResume.fileName}</span>
@@ -199,7 +202,7 @@ const InterviewForm = ({ savedResume, template = null }: InterviewFormProps) => 
                 </div>
               ) : (
                 <button type="button" onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-5 text-sm text-mist-400 transition-colors hover:border-spark-500/40 hover:text-mist-200">
+                  className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface-raised px-4 py-5 text-sm text-mist-400 transition-colors hover:border-primary/40 hover:text-mist-200">
                   <Upload className="size-4" /> Upload your resume (PDF, max 4MB)
                 </button>
               )}
@@ -237,16 +240,14 @@ const InterviewForm = ({ savedResume, template = null }: InterviewFormProps) => 
           type="number"
         />
 
-        <button className="btn-spark w-full mt-2" type="submit" disabled={form.formState.isSubmitting}>
+        <button className="btn-highlight w-full mt-2" type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
               {hasResumeContext ? "Reading your resume and generating questions" : "Generating your questions"}
             </>
           ) : (
-            <>
-              <Sparkles className="size-4" /> Create interview
-            </>
+            "Create interview"
           )}
         </button>
       </form>

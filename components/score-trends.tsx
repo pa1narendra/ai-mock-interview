@@ -1,7 +1,5 @@
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-
-const scoreTone = (score: number) =>
-  score >= 75 ? "text-spark-400" : score >= 50 ? "text-ember-400" : "text-alert-400";
+import { scoreTone } from "@/lib/utils";
 
 const CATEGORIES = [
   "Communication Skills",
@@ -18,10 +16,10 @@ function delta(points: ScorePoint[], pick: (p: ScorePoint) => number) {
 
 const DeltaBadge = ({ value }: { value: number }) => {
   if (value > 0)
-    return <span className="flex items-center gap-0.5 text-xs font-semibold text-spark-400"><TrendingUp className="size-3" />+{value}</span>;
+    return <span className="flex items-center gap-0.5 text-xs font-semibold text-success"><TrendingUp className="size-3" />+{value}</span>;
   if (value < 0)
-    return <span className="flex items-center gap-0.5 text-xs font-semibold text-alert-400"><TrendingDown className="size-3" />{value}</span>;
-  return <span className="flex items-center gap-0.5 text-xs font-semibold text-mist-500"><Minus className="size-3" />0</span>;
+    return <span className="flex items-center gap-0.5 text-xs font-semibold text-danger"><TrendingDown className="size-3" />{value}</span>;
+  return <span className="flex items-center gap-0.5 text-xs font-semibold text-muted-foreground"><Minus className="size-3" />0</span>;
 };
 
 // Dependency-free inline SVG line of overall score over time.
@@ -36,17 +34,11 @@ const Sparkline = ({ values }: { values: number[] }) => {
   const area = `${line} L ${x(n - 1).toFixed(1)} ${h - pad} L ${x(0).toFixed(1)} ${h - pad} Z`;
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none" role="img" aria-label="Overall score over time">
-      <defs>
-        <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#trend-fill)" />
-      <path d={line} fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full text-primary" preserveAspectRatio="none" role="img" aria-label="Overall score over time">
+      <path d={area} fill="currentColor" fillOpacity="0.06" />
+      <path d={line} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       {values.map((v, i) => (
-        <circle key={i} cx={x(i)} cy={y(v)} r="3" fill="#5eead4" />
+        <circle key={i} cx={x(i)} cy={y(v)} r="3" fill="currentColor" />
       ))}
     </svg>
   );
