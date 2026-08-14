@@ -16,11 +16,22 @@ import Logo from "./logo"
 
 const REQUIRE_EMAIL_VERIFICATION = process.env.NEXT_PUBLIC_REQUIRE_EMAIL_VERIFICATION === "true"
 
+// Record the referral (best-effort, never throws) but never let it stall the
+// redirect: cap the wait so a slow/hung attach can't strand the user.
+async function recordReferral(code?: string) {
+  if (!code) return
+  await Promise.race([
+    attachReferrer(code),
+    new Promise((resolve) => setTimeout(resolve, 2500)),
+  ])
+}
+
 const authFormSchema = (type: FormType) => {
   return z.object({
     name: type === "sign-up" ? z.string().min(3).max(30) : z.string().optional(),
     email: z.string().email(),
     password: z.string().min(8),
+    referralCode: z.string().optional(),
   })
 }
 
@@ -43,6 +54,7 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
       name: "",
       email: "",
       password: "",
+      referralCode: referralCode ?? "",
     },
   })
 
@@ -63,10 +75,10 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
         );
         return;
       }
-      if (referralCode) await attachReferrer(referralCode);
-      toast.success("Welcome back!");
-      router.push("/dashboard");
-      router.refresh();
+      await recordReferral(referralCode);
+      // Hard navigation guarantees the just-set session cookie is used and
+      // avoids the router.push+refresh race that could strand the user here.
+      window.location.assign("/dashboard");
     } else {
       const { error } = await authClient.signUp.email({ name: name!, email, password });
       if (error) {
@@ -77,15 +89,16 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
         );
         return;
       }
+      const enteredCode = (values.referralCode ?? "").trim() || referralCode;
       if (REQUIRE_EMAIL_VERIFICATION) {
         toast.success("Account created! Check your email for a verification link, then sign in.");
-        router.push(referralCode ? `/sign-in?ref=${encodeURIComponent(referralCode)}` : "/sign-in");
+        router.push(enteredCode ? `/sign-in?ref=${encodeURIComponent(enteredCode)}` : "/sign-in");
         return;
       }
-      if (referralCode) await attachReferrer(referralCode);
-      toast.success("Account created - welcome to Mockstar!");
-      router.push("/dashboard");
-      router.refresh();
+      await recordReferral(enteredCode);
+      // Hard navigation: reliable with the freshly-set session cookie, and not
+      // cancellable by a router refresh (the cause of the stuck signup screen).
+      window.location.assign("/dashboard");
     }
   }
 
@@ -120,6 +133,15 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
           )}
           <TextField control={form.control} name="email" label="Email" placeholder="you@example.com" type="email" />
           <TextField control={form.control} name="password" label="Password" placeholder="At least 8 characters" type="password" />
+
+          {!isSignIn && (
+            <TextField
+              control={form.control}
+              name="referralCode"
+              label="Referral code (optional)"
+              placeholder="Have a friend's code? Enter it here"
+            />
+          )}
 
           {isSignIn && (
             <Link href="/forgot-password" className="-mt-2 self-end text-xs font-medium text-mist-500 hover:text-spark-300">

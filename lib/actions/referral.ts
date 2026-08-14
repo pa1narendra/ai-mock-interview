@@ -68,10 +68,13 @@ export async function getOrCreateReferral(): Promise<ReferralInfo | null> {
 // referrer is only *credited* later, when this user completes their first
 // interview (see lib/actions/transcripts.ts).
 export async function attachReferrer(code: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || !code) return;
-
+  // Never throws: attribution is best-effort and must never block the
+  // post-signup redirect.
+  if (!code) return;
   try {
+    const user = await getCurrentUser();
+    if (!user) return;
+
     const [self] = await db
       .select({ referredBy: userTable.referredBy })
       .from(userTable)
@@ -88,7 +91,7 @@ export async function attachReferrer(code: string): Promise<void> {
 
     await db.update(userTable).set({ referredBy: referrer.id }).where(eq(userTable.id, user.id));
   } catch {
-    /* columns not migrated yet - ignore */
+    /* not migrated / transient - ignore, attribution is best-effort */
   }
 }
 
