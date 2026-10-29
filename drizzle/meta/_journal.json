@@ -50,6 +50,13 @@
       "when": 1781549230348,
       "tag": "0006_greedy_zuras",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793302992684,
+      "tag": "0007_friendly_ironclad",
+      "breakpoints": true
     }
   ]
 }

@@ -44,6 +44,17 @@ const OWNER: Permissions = {
   maxInterviews: 999,
 };
 
+// The single Pro rule: an admin grant or a converted referral, unless an
+// admin has explicitly turned Pro off for this user.
+export function effectivePro(row: {
+  isPro: boolean;
+  referralCount: number | null;
+  proRevoked: boolean;
+}): boolean {
+  if (row.proRevoked) return false;
+  return row.isPro || (row.referralCount ?? 0) >= 1;
+}
+
 export function isOwner(email: string | null | undefined): boolean {
   const owner = process.env.OWNER_EMAIL?.trim().toLowerCase();
   return !!owner && !!email && email.trim().toLowerCase() === owner;

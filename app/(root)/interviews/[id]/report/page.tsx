@@ -121,6 +121,7 @@ const Page = async ({ params, searchParams }: RouteParams) => {
               <Link
                 key={candidate.attempt}
                 href={`/interviews/${id}/report?attempt=${candidate.attempt}`}
+                replace
                 className={cn(
                   'rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
                   candidate.attempt === report.attempt

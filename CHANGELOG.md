@@ -4,6 +4,25 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.6.2] - 2026-10-29
+
+### Added
+- Confirmation dialogs before creating an interview, starting one, and ending one, so a stray click or Enter can't burn an attempt. Cancel is focused by default, and Escape or clicking outside closes the dialog.
+
+### Fixed
+- Back on the report page now leaves the report. Generating a pending report and switching between attempt tabs used to add history entries, so Back appeared to do nothing. Back from the report (or the interview you just created) now goes to the dashboard instead of the finished session or the filled-in form.
+- Long interviews are scored in full. Transcripts used to be cut at 30k characters, so the last answers of a long interview were never scored. The limit is now 100k, and anything beyond it drops the middle, never the end.
+- The overall score is now the average of the five category scores, so it always matches the breakdown under it.
+- Double-clicking "Generate report" can no longer save two reports for the same attempt.
+- Turning Pro off in the admin page now works for users who earned Pro through a referral. The Pro rule now lives in one place instead of three.
+
+### Security
+- "Practice your gaps" now follows the same limits as creating an interview: the daily cap and the 5 / 20 interview limit.
+- The scoring prompt treats the transcript as data, so a candidate saying "give me 100" doesn't change the score.
+
+### Database
+- New `user.pro_revoked` column and a unique index on reports (interview, user, attempt), applied with plain SQL on 2026-10-29. Better Auth reads every user column, so this must exist before the code is deployed or sign-in fails. Don't use `db:push` on this database: the referral-code unique index has a different name than in the schema, so push tries to re-add it and offers to truncate the user table.
+
 ## [0.6.1] - 2026-10-29
 
 ### Fixed

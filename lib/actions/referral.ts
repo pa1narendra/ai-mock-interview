@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { user as userTable } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
-import { isOwner } from "@/lib/permissions";
+import { effectivePro, isOwner } from "@/lib/permissions";
 
 export interface ReferralInfo {
   code: string;
@@ -31,6 +31,7 @@ export async function getOrCreateReferral(): Promise<ReferralInfo | null> {
         referralCode: userTable.referralCode,
         referralCount: userTable.referralCount,
         isPro: userTable.isPro,
+        proRevoked: userTable.proRevoked,
         referredBy: userTable.referredBy,
       })
       .from(userTable)
@@ -56,7 +57,7 @@ export async function getOrCreateReferral(): Promise<ReferralInfo | null> {
     return {
       code,
       referralCount: row.referralCount ?? 0,
-      isPro: row.isPro || (row.referralCount ?? 0) >= 1,
+      isPro: effectivePro(row),
       hasReferrer: !!row.referredBy,
     };
   } catch {
@@ -111,17 +112,20 @@ export async function listUsersForAdmin(): Promise<AdminUserRow[]> {
   if (!isOwner(user?.email)) return [];
 
   try {
-    return await db
+    const rows = await db
       .select({
         id: userTable.id,
         name: userTable.name,
         email: userTable.email,
         isPro: userTable.isPro,
+        proRevoked: userTable.proRevoked,
         referralCount: userTable.referralCount,
         createdAt: userTable.createdAt,
       })
       .from(userTable)
       .orderBy(desc(userTable.createdAt));
+    // isPro here is the effective state, which is what the toggle shows.
+    return rows.map(({ proRevoked, ...row }) => ({ ...row, isPro: effectivePro({ ...row, proRevoked }) }));
   } catch {
     return [];
   }
@@ -135,7 +139,8 @@ export async function setUserPro(
   if (!isOwner(owner?.email)) return { success: false };
 
   try {
-    await db.update(userTable).set({ isPro: value }).where(eq(userTable.id, userId));
+    // Off is an explicit revoke, so it also overrides referral-earned Pro.
+    await db.update(userTable).set({ isPro: value, proRevoked: !value }).where(eq(userTable.id, userId));
     revalidatePath("/admin");
     return { success: true };
   } catch {

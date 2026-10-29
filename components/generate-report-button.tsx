@@ -15,7 +15,8 @@ const GenerateReportButton = ({ transcriptId, interviewId }: { transcriptId: str
     const result = await createReport(transcriptId)
     if (result.success) {
       toast.success("Report generated!")
-      router.push(`/interviews/${interviewId}/report?attempt=${result.attempt}`)
+      // replace: this is the same report page, so it mustn't become a Back target.
+      router.replace(`/interviews/${interviewId}/report?attempt=${result.attempt}`)
       router.refresh()
     } else {
       toast.error("The AI service is still busy - try again in a minute. Your answers are safe.")

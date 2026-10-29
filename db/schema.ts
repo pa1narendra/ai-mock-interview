@@ -12,6 +12,7 @@ export const user = pgTable("user", {
   image: text("image"),
   // --- Referral-earned Pro tier (app-managed; Better Auth ignores these) ---
   isPro: boolean("is_pro").notNull().default(false),        // admin override
+  proRevoked: boolean("pro_revoked").notNull().default(false), // admin turned Pro off, even if earned
   referralCode: text("referral_code").unique(),             // this user's invite code
   referredBy: text("referred_by"),                          // referrer's user id
   referralCount: integer("referral_count").notNull().default(0), // converted referrals
@@ -120,6 +121,8 @@ export const reports = pgTable("reports", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [
   index("reports_interview_user_idx").on(table.interviewId, table.userId),
+  // One report per attempt: a double-clicked "Generate report" can't save two.
+  uniqueIndex("reports_interview_user_attempt_uq").on(table.interviewId, table.userId, table.attempt),
 ]);
 
 // Saved the moment an interview session ends, BEFORE report generation -

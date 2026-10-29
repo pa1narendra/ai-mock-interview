@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/actions/auth";
 import { getReportForInterview } from "@/lib/actions/reports";
 import { resilientGenerateObject } from "@/lib/ai/generate";
 import { buildFocusedQuestionsPrompt } from "@/lib/ai/prompts";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkGenerationQuota } from "@/lib/generation-quota";
 
 const FOCUSED_AMOUNT = 5;
 
@@ -94,8 +94,9 @@ export async function createFocusedInterview(
         return { success: false, message: "No weak areas to practice - great work!" };
     }
 
-    const limited = await checkRateLimit(user.id, "generate", 10);
-    if (!limited.ok) return { success: false, message: "Too many interviews generated. Try again in an hour." };
+    // Same limits as the main generate route - this creates an interview too.
+    const quota = await checkGenerationQuota(user);
+    if (!quota.ok) return { success: false, message: quota.message };
 
     try {
         const { object } = await resilientGenerateObject({

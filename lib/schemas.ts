@@ -118,8 +118,8 @@ export const questionFeedbackSchema = z.array(
   })
 );
 
+// No totalScore: the server computes it from the categories (averageScore).
 export const reportSchema = z.object({
-  totalScore: z.number(),
   categoryScores: z
     .array(
       z.object({

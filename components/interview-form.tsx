@@ -6,11 +6,12 @@ import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import dayjs from "dayjs"
-import { FileText, Loader2, Upload, X } from "lucide-react"
+import { FileText, Loader2, Sparkles, Upload, X } from "lucide-react"
 
 import TextField from "./form/text-field"
 import SelectField from "./form/select-field"
 import TextareaField from "./form/textarea-field"
+import ConfirmDialog from "./confirm-dialog"
 import { interviewFormSchema, VOICE_OPTIONS, type InterviewFormValues } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
 
@@ -52,6 +53,9 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [useSaved, setUseSaved] = useState(Boolean(savedResume))
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Validated values waiting on the confirmation dialog.
+  const [pendingValues, setPendingValues] = useState<InterviewFormValues | null>(null)
+  const [generating, setGenerating] = useState(false)
 
   const form = useForm<InterviewFormValues>({
     resolver: zodResolver(interviewFormSchema),
@@ -80,7 +84,7 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
     setUseSaved(false)
   }
 
-  async function onSubmit(values: InterviewFormValues) {
+  function onSubmit(values: InterviewFormValues) {
     const targeted = mode === "targeted"
 
     if (targeted && !values.jd.trim()) {
@@ -92,6 +96,12 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
       return
     }
 
+    setPendingValues(values)
+  }
+
+  async function generate(values: InterviewFormValues) {
+    const targeted = mode === "targeted"
+    setGenerating(true)
     try {
       const fd = new FormData()
       fd.set("role", values.role)
@@ -111,13 +121,16 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
 
       if (!res.ok || !data.success) {
         toast.error(data.message ?? "Failed to generate the interview. Please try again.")
+        setGenerating(false)
         return
       }
 
       toast.success("Interview ready. Good luck!")
-      router.push(`/interviews/${data.interviewId}`)
+      // replace: the submitted form shouldn't be a Back target.
+      router.replace(`/interviews/${data.interviewId}`)
     } catch {
       toast.error("Something went wrong. Please check your connection and try again.")
+      setGenerating(false)
     }
   }
 
@@ -240,8 +253,8 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
           type="number"
         />
 
-        <button className="btn-highlight w-full mt-2" type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? (
+        <button className="btn-highlight w-full mt-2" type="submit" disabled={generating}>
+          {generating ? (
             <>
               <Loader2 className="size-4 animate-spin" />
               {hasResumeContext ? "Reading your resume and generating questions" : "Generating your questions"}
@@ -251,6 +264,29 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
           )}
         </button>
       </form>
+
+      <ConfirmDialog
+        open={pendingValues !== null}
+        icon={<Sparkles className="size-4" />}
+        title="Create this interview?"
+        description={
+          pendingValues && (
+            <>
+              {pendingValues.amount} {pendingValues.type} question{Number(pendingValues.amount) === 1 ? "" : "s"} for
+              a {levelOptions.find((o) => o.value === pendingValues.level)?.label.toLowerCase()} {pendingValues.role}
+              {hasResumeContext ? ", tailored to your resume and the job description" : targeted ? ", based on the job description" : ""}.
+              This counts toward your interview limit.
+            </>
+          )
+        }
+        confirmLabel="Create interview"
+        onCancel={() => setPendingValues(null)}
+        onConfirm={() => {
+          const values = pendingValues
+          setPendingValues(null)
+          if (values) void generate(values)
+        }}
+      />
     </div>
   )
 }

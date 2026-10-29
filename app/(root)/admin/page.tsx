@@ -19,7 +19,7 @@ const Page = async () => {
       <div className="flex flex-col gap-1">
         <h1>Users</h1>
         <p className="text-sm text-muted-foreground">
-          Toggle grants Pro manually. Users also earn Pro automatically once a referral completes an interview.
+          Toggle grants or removes Pro. Users also earn Pro automatically once a referral completes an interview, unless you&apos;ve turned it off here.
         </p>
       </div>
 
@@ -30,13 +30,12 @@ const Page = async () => {
           </p>
         ) : (
           users.map((u) => {
-            const effectivePro = u.isPro || u.referralCount >= 1;
             return (
               <div key={u.id} className="flex items-center justify-between gap-4 px-6 py-4">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 truncate font-medium text-foreground">
                     {u.name}
-                    {effectivePro && <ProBadge />}
+                    {u.isPro && <ProBadge />}
                   </p>
                   <p className="truncate text-sm text-muted-foreground">{u.email}</p>
                 </div>

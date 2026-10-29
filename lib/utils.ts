@@ -51,3 +51,24 @@ export function roleInitials(role: string): string {
     .map((word) => word[0]!.toUpperCase())
     .join("");
 }
+
+export function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+// The overall score is the mean of the category scores, so it can never
+// disagree with the breakdown shown under it.
+export function averageScore(scores: Array<{ score: number }>): number {
+  if (scores.length === 0) return 0;
+  return clampScore(scores.reduce((sum, s) => sum + clampScore(s.score), 0) / scores.length);
+}
+
+// Shortens text to at most `max` chars by dropping the middle, so both the
+// opening and the final answers survive.
+export function keepHeadAndTail(text: string, max: number, headShare = 0.3): string {
+  if (text.length <= max) return text;
+  const marker = "\n[... middle of the transcript omitted for length ...]\n";
+  const budget = Math.max(0, max - marker.length);
+  const head = Math.floor(budget * headShare);
+  return text.slice(0, head) + marker + text.slice(text.length - (budget - head));
+}

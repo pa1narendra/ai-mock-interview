@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Mic, PhoneOff, Loader2, RotateCcw } from 'lucide-react';
 import Transcript from '@/components/transcript';
+import ConfirmDialog from '@/components/confirm-dialog';
 
 const statusLabel: Record<SessionStatus, string> = {
   [SessionStatus.IDLE]: 'Ready when you are',
@@ -17,9 +18,17 @@ const statusLabel: Record<SessionStatus, string> = {
   [SessionStatus.ENDED]: 'Interview complete',
 };
 
-const VoiceSession = ({ userName, interviewId }: { userName: string; interviewId: string }) => {
+interface VoiceSessionProps {
+  userName: string;
+  interviewId: string;
+  attempt: number;
+  maxAttempts: number;
+}
+
+const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSessionProps) => {
   const router = useRouter();
   const { status, isSpeaking, messages, caption, start, end } = useVoiceSession(interviewId);
+  const [confirming, setConfirming] = useState<'start' | 'end' | null>(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const hasGeneratedReport = useRef(false);
@@ -48,12 +57,14 @@ const VoiceSession = ({ userName, interviewId }: { userName: string; interviewId
       transcriptIdRef.current = saved.transcriptId;
     }
 
+    // replace, not push: the finished session shouldn't be a Back target -
+    // Back from the report returns to wherever the candidate came from.
     const report = await createReport(transcriptIdRef.current);
     if (report.success && report.reportId) {
-      router.push(`/interviews/${interviewId}/report?attempt=${report.attempt}`);
+      router.replace(`/interviews/${interviewId}/report?attempt=${report.attempt}`);
     } else {
       toast.info('Your answers are saved. The AI service is busy right now - generate your report from the report page in a minute.');
-      router.push(`/interviews/${interviewId}/report`);
+      router.replace(`/interviews/${interviewId}/report`);
     }
   }, [messages, interviewId, router]);
 
@@ -128,11 +139,7 @@ const VoiceSession = ({ userName, interviewId }: { userName: string; interviewId
       ) : !isLive ? (
         <button
           className="btn-highlight min-w-44"
-          onClick={() => {
-            hasGeneratedReport.current = false;
-            transcriptIdRef.current = null;
-            void start();
-          }}
+          onClick={() => setConfirming('start')}
           disabled={status === SessionStatus.CONNECTING || isSavingReport}
         >
           {isSavingReport ? (
@@ -150,10 +157,49 @@ const VoiceSession = ({ userName, interviewId }: { userName: string; interviewId
           )}
         </button>
       ) : (
-        <button className="btn-danger min-w-44" onClick={end}>
+        <button className="btn-danger min-w-44" onClick={() => setConfirming('end')}>
           <PhoneOff className="size-4" /> End interview
         </button>
       )}
+
+      <ConfirmDialog
+        open={confirming === 'start'}
+        icon={<Mic className="size-4" />}
+        title="Start the interview?"
+        description={
+          <>
+            The interviewer starts speaking as soon as you&apos;re connected, so find a quiet spot and have your mic
+            ready. This uses attempt {attempt} of {maxAttempts}.
+          </>
+        }
+        confirmLabel="Start interview"
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          setConfirming(null);
+          hasGeneratedReport.current = false;
+          transcriptIdRef.current = null;
+          void start();
+        }}
+      />
+      <ConfirmDialog
+        open={confirming === 'end' && isLive}
+        tone="danger"
+        icon={<PhoneOff className="size-4" />}
+        title="End the interview now?"
+        description={
+          <>
+            Your answers so far will be scored as attempt {attempt} of {maxAttempts}. You can&apos;t pick this
+            session back up once it ends.
+          </>
+        }
+        confirmLabel="End interview"
+        cancelLabel="Keep going"
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          setConfirming(null);
+          end();
+        }}
+      />
     </section>
   );
 };

@@ -88,7 +88,12 @@ const Page = async ({ params }: RouteParams) => {
               canEdit={perms.canEditQuestions && interview.userId === user.id}
             />
           )}
-          <VoiceSession userName={user.name} interviewId={id} />
+          <VoiceSession
+            userName={user.name}
+            interviewId={id}
+            attempt={attemptsUsed + 1}
+            maxAttempts={maxAttempts}
+          />
         </>
       )}
     </>
