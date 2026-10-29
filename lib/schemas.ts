@@ -34,6 +34,25 @@ export const interviewRequestSchema = z
 
 export type InterviewRequest = z.infer<typeof interviewRequestSchema>;
 
+// The transcript arrives from the browser, so bound its shape and size.
+export const transcriptSchema = z
+  .array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().max(10_000),
+    })
+  )
+  .min(1)
+  .max(500);
+
+// A referral only converts when the referred user's interview had real
+// substance - not a "hi" and hang up, or a scripted one-line transcript.
+export const MIN_USER_TURNS_FOR_REFERRAL = 3;
+
+export function countUserTurns(turns: Array<{ role: string; content: string }>): number {
+  return turns.filter((turn) => turn.role === "user" && turn.content.trim().length > 0).length;
+}
+
 // Client-side variant for react-hook-form: no coercion/defaults (the form
 // supplies real types), mode-specific requirements are enforced on submit.
 export const interviewFormSchema = z.object({

@@ -26,6 +26,8 @@ const Page = async ({ params }: RouteParams) => {
 
   const interview = await getInterview(id);
   if (!interview) redirect('/dashboard');
+  // Someone else's interview: personalize it instead of taking it verbatim.
+  if (interview.userId !== user.id) redirect(`/interviews/new?template=${id}`);
 
   const perms = getPermissions(user);
   const maxAttempts = perms.maxAttempts;

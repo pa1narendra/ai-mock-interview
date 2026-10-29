@@ -40,13 +40,27 @@ function downsample(samples: Float32Array, fromRate: number, toRate: number): Fl
   return result;
 }
 
+// RMS level above which a chunk counts as the candidate speaking. The mic runs
+// with noise suppression, so room noise sits well below this; normal speech
+// is roughly 0.02-0.2.
+const VOICE_RMS_THRESHOLD = 0.01;
+
+function rms(samples: Float32Array): number {
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+  return Math.sqrt(sum / (samples.length || 1));
+}
+
 export class PcmRecorder {
   private context: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private worklet: AudioWorkletNode | null = null;
 
-  async start(onChunk: (base64Pcm16: string) => void): Promise<void> {
+  // onVoice fires for every chunk that contains speech, so callers can tell
+  // a long answer apart from real silence (the server sends no messages
+  // while the candidate is mid-answer).
+  async start(onChunk: (base64Pcm16: string) => void, onVoice?: () => void): Promise<void> {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new UnsupportedAudioError();
     }
@@ -84,6 +98,7 @@ export class PcmRecorder {
 
     const contextRate = this.context.sampleRate;
     this.worklet.port.onmessage = (event: MessageEvent<Float32Array>) => {
+      if (onVoice && rms(event.data) > VOICE_RMS_THRESHOLD) onVoice();
       const resampled = downsample(event.data, contextRate, TARGET_SAMPLE_RATE);
       onChunk(floatTo16BitPcmBase64(resampled));
     };

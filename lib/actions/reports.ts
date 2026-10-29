@@ -7,7 +7,14 @@ import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { resilientGenerateObject } from "@/lib/ai/generate";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { jdMatchSchema, questionFeedbackSchema, reportSchema } from "@/lib/schemas";
+import { creditReferrerOnce } from "@/lib/referral-credit";
+import {
+    countUserTurns,
+    jdMatchSchema,
+    MIN_USER_TURNS_FOR_REFERRAL,
+    questionFeedbackSchema,
+    reportSchema,
+} from "@/lib/schemas";
 
 const MAX_TRANSCRIPT_CHARS = 30_000;
 const MAX_JD_CHARS = 6_000;
@@ -134,6 +141,11 @@ export async function createReport(transcriptId: string) {
         await db.update(transcripts)
             .set({ status: "reported" })
             .where(eq(transcripts.id, transcript.id));
+
+        // A scored interview with real answers is what converts a referral.
+        if (countUserTurns(transcript.turns) >= MIN_USER_TURNS_FOR_REFERRAL) {
+            await creditReferrerOnce(user.id);
+        }
 
         // Refresh cached pages so back-navigation shows the new attempt/score.
         revalidatePath(`/interviews/${transcript.interviewId}`);

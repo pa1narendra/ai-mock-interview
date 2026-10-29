@@ -27,9 +27,17 @@ interface TokenResponse {
 }
 
 // Watchdog: if the interviewer goes silent (VAD missed the end of the user's
-// turn, or the model produced an empty turn), nudge it back to life.
+// turn, or the model produced an empty turn), nudge it back to life. Only
+// counts silence on BOTH sides - the candidate talking through a long answer
+// is activity, otherwise the nudge interrupts them every ~30s.
 const IDLE_MS = 25_000;
 const MAX_NUDGES = 3;
+
+// Live models wait for input before speaking, so a fresh session is kicked
+// off with an invisible note - otherwise the candidate sits in silence until
+// they say something first.
+const KICKOFF_NOTE =
+  "(system note: the candidate has joined and is ready. Start the interview now: greet them and ask the first question. Respond in English. Do not mention this note.)";
 
 export function useVoiceSession(interviewId: string) {
   const [status, setStatusState] = useState<SessionStatus>(SessionStatus.IDLE);
@@ -116,8 +124,11 @@ export function useVoiceSession(interviewId: string) {
 
   const handleMessage = useCallback(
     (message: LiveServerMessage) => {
-      lastActivityRef.current = Date.now();
       const content = message.serverContent;
+      // Only real conversation counts as activity. The server also sends
+      // housekeeping (sessionResumptionUpdate every few seconds while idle),
+      // which would otherwise keep the silence watchdog from ever firing.
+      if (content || message.toolCall) lastActivityRef.current = Date.now();
 
       const audio = content?.modelTurn?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data;
       if (audio) playerRef.current?.enqueue(audio);
@@ -130,9 +141,16 @@ export function useVoiceSession(interviewId: string) {
         reconnectingRef.current = true;
         const handle = resumeHandleRef.current;
         void (async () => {
+          // Keep streaming to the old session until the new one is up, then
+          // close the old one so two sessions never run side by side.
+          const previous = sessionRef.current;
           try {
-            sessionRef.current = null;
             await connectRef.current?.(handle);
+            try {
+              previous?.close();
+            } catch {
+              // already closed
+            }
           } catch (e) {
             console.error("proactive reconnect failed", e);
           } finally {
@@ -179,10 +197,13 @@ export function useVoiceSession(interviewId: string) {
     [flushBuffer, finish]
   );
 
-  const handleClose = useCallback(async () => {
+  const handleClose = useCallback(async (closed: Session | null) => {
+    // A session replaced during a goAway handover closing is expected - it
+    // must not clear the live session or trigger another resume.
+    if (closed && closed !== sessionRef.current) return;
+    if (reconnectingRef.current) return;
     sessionRef.current = null;
     if (userEndedRef.current || statusRef.current !== SessionStatus.LIVE) return;
-    if (reconnectingRef.current) return;
 
     // Unexpected drop (network blip or ~10 min websocket lifetime):
     // try to resume the session once with a fresh token.
@@ -215,7 +236,8 @@ export function useVoiceSession(interviewId: string) {
         httpOptions: { apiVersion: "v1alpha" },
       });
 
-      const session = await ai.live.connect({
+      let session: Session | null = null;
+      session = await ai.live.connect({
         model: model!,
         config: config!,
         callbacks: {
@@ -225,7 +247,7 @@ export function useVoiceSession(interviewId: string) {
             console.error("voice session error", e);
           },
           onclose: () => {
-            void handleClose();
+            void handleClose(session);
           },
         },
       });
@@ -269,15 +291,25 @@ export function useVoiceSession(interviewId: string) {
 
       // Request the mic before minting a token so a denial fails fast.
       const recorder = new PcmRecorder();
-      await recorder.start((base64) => {
-        sessionRef.current?.sendRealtimeInput({
-          audio: { data: base64, mimeType: "audio/pcm;rate=16000" },
-        });
-      });
+      await recorder.start(
+        (base64) => {
+          sessionRef.current?.sendRealtimeInput({
+            audio: { data: base64, mimeType: "audio/pcm;rate=16000" },
+          });
+        },
+        () => {
+          lastActivityRef.current = Date.now();
+        }
+      );
       recorderRef.current = recorder;
 
       await connect();
       setStatus(SessionStatus.LIVE);
+      // Not on resumes - those continue a conversation already under way.
+      sessionRef.current?.sendClientContent({
+        turns: [{ role: "user", parts: [{ text: KICKOFF_NOTE }] }],
+        turnComplete: true,
+      });
 
       lastActivityRef.current = Date.now();
       nudgeCountRef.current = 0;

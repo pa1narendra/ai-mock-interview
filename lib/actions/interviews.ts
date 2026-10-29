@@ -138,12 +138,12 @@ export async function getInterview(id: string): Promise<Interview | null> {
         .limit(1);
     if (!interview) return null;
 
-    // Community interviews are takeable by anyone, but the owner's JD and
-    // resume-derived data are personal - never expose them to other users
-    // (they would otherwise surface in the fit panel and in the interviewer
-    // system prompt, which the voice token route echoes to the browser).
+    // Other users only ever see the public template fields (role, level,
+    // type, stack). The questions are personal too: targeted interviews
+    // name the owner's employers and projects from their resume. Community
+    // interviews are taken by personalizing a fresh copy, never verbatim.
     if (interview.userId !== user.id) {
-        return { ...interview, jdText: null, resumeSnapshot: null, fitSnapshot: null };
+        return { ...interview, questions: [], jdText: null, resumeSnapshot: null, fitSnapshot: null };
     }
 
     return interview;

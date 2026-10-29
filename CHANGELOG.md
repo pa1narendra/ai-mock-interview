@@ -4,6 +4,20 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.6.1] - 2026-10-29
+
+### Fixed
+- The interviewer no longer interrupts long answers. A silence watchdog used to nudge the AI after ~25s with no server messages, even while you were still talking (the server sends nothing mid-answer), and after three nudges it ended the interview. It now treats your voice on the mic as activity and only steps in when both sides are silent.
+- Long interviews no longer risk a doubled or dropped voice session at the ~10 minute reconnect: the old session is closed after the handover, and its close no longer triggers a second resume.
+- The interviewer now starts the interview: it greets you and asks the first question as soon as the session opens, instead of waiting in silence for you to speak first.
+- When both sides go quiet, the interviewer now gently re-asks the question after ~25s. This check never fired before, because background keep-alive messages from the server were counted as conversation.
+
+### Security
+- Other users can no longer see or take your interview's questions (targeted questions name your employers and projects). Someone else's interview link now goes to the personalize flow, and the voice token and transcript save are owner-only.
+- A voice-session resume now checks your attempt limit and has its own daily cap, so it can't be used to bypass the limits.
+- Referrals now convert only when the referred user gets a report for an interview with at least 3 real answers, not on any saved transcript.
+- Transcripts sent from the browser are validated for shape and size.
+
 ## [0.6.0] - 2026-08-07
 
 ### Added

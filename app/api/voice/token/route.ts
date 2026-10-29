@@ -14,6 +14,7 @@ const requestSchema = z.object({
 
 // Per-user daily voice-session cap (Live API is the main cost driver).
 const DAILY_VOICE_SESSIONS = 10;
+const DAILY_VOICE_RESUMES = 40;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -34,21 +35,35 @@ export async function POST(request: Request) {
   }
 
   const interview = await getInterview(parsed.data.interviewId);
-  if (!interview) {
+  // Only the owner can take an interview directly; the system prompt below
+  // contains the questions, which are personal to the owner.
+  if (!interview || interview.userId !== user.id) {
     return Response.json({ success: false, message: "Interview not found" }, { status: 404 });
   }
 
-  // Resuming an in-progress session (resumeHandle) is not a new attempt.
-  if (!parsed.data.resumeHandle) {
-    const maxAttempts = getPermissions(user).maxAttempts;
-    const attemptsUsed = await getAttemptsUsed(interview.id);
-    if (attemptsUsed >= maxAttempts) {
+  // Attempts are checked for resumes too - the handle comes from the client
+  // and is never verified here, so it must not be a way around the limits.
+  const maxAttempts = getPermissions(user).maxAttempts;
+  const attemptsUsed = await getAttemptsUsed(interview.id);
+  if (attemptsUsed >= maxAttempts) {
+    return Response.json(
+      { success: false, message: `You've used all ${maxAttempts} attempts for this interview.` },
+      { status: 403 }
+    );
+  }
+
+  if (parsed.data.resumeHandle) {
+    // Resuming an in-progress session is not a new interview, but resumes
+    // get their own cap so a made-up handle can't mint unlimited tokens.
+    // A long interview resumes every ~10 min, so this stays well above real use.
+    const resumeLimit = await checkRateLimit(user.id, "voice_resume_day", DAILY_VOICE_RESUMES, "1 day");
+    if (!resumeLimit.ok) {
       return Response.json(
-        { success: false, message: `You've used all ${maxAttempts} attempts for this interview.` },
-        { status: 403 }
+        { success: false, message: "Too many reconnects today. Please try again tomorrow." },
+        { status: 429 }
       );
     }
-
+  } else {
     // Daily cap on voice sessions - the Live API is the expensive path, so
     // bound per-user cost even across many interviews.
     const voiceLimit = await checkRateLimit(user.id, "voice_day", DAILY_VOICE_SESSIONS, "1 day");
