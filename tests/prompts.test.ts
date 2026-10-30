@@ -21,6 +21,15 @@ describe("buildInterviewerPrompt", () => {
     expect(prompt).toContain("answered question 3");
   });
 
+  it("lets the interviewer go deep instead of capping follow-ups", () => {
+    const prompt = buildInterviewerPrompt(baseInterview, "Pavan");
+    expect(prompt).not.toContain("At most ONE");
+    expect(prompt).toContain("Deep dive");
+    expect(prompt).toContain("Press:");
+    expect(prompt).toContain("Move on:");
+    expect(prompt).toContain("do not count as numbered questions");
+  });
+
   it("mandates English and the end_interview tool call", () => {
     const prompt = buildInterviewerPrompt(baseInterview, "Pavan");
     expect(prompt).toContain("English only");

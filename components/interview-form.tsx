@@ -12,7 +12,7 @@ import TextField from "./form/text-field"
 import SelectField from "./form/select-field"
 import TextareaField from "./form/textarea-field"
 import ConfirmDialog from "./confirm-dialog"
-import { interviewFormSchema, VOICE_OPTIONS, type InterviewFormValues } from "@/lib/schemas"
+import { interviewFormSchema, MAX_QUESTIONS, MIN_QUESTIONS, VOICE_OPTIONS, type InterviewFormValues } from "@/lib/schemas"
 import { cn } from "@/lib/utils"
 
 const levelOptions = [
@@ -64,7 +64,7 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
       level: template && (LEVELS as readonly string[]).includes(template.level) ? (template.level as typeof LEVELS[number]) : "junior",
       type: template && (TYPES as readonly string[]).includes(template.type) ? (template.type as typeof TYPES[number]) : "mixed",
       techstack: template?.techstack.join(", ") ?? "",
-      amount: 5,
+      amount: MIN_QUESTIONS,
       jd: "",
       voice: template?.voice && (VOICES as readonly string[]).includes(template.voice) ? (template.voice as typeof VOICES[number]) : "Aoede",
     },
@@ -249,7 +249,7 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
         <TextField
           control={form.control}
           name="amount"
-          label="Number of questions (1-20)"
+          label={`Number of questions (${MIN_QUESTIONS}-${MAX_QUESTIONS})`}
           type="number"
         />
 

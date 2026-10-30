@@ -30,7 +30,7 @@ const Transcript = ({ messages, caption }: TranscriptProps) => {
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="panel flex h-72 w-full max-w-2xl flex-col gap-3 overflow-y-auto px-5 py-4"
+      className="panel flex h-[28rem] w-full max-w-2xl flex-col gap-3 overflow-y-auto px-5 py-4 max-sm:h-80"
       aria-live="polite"
     >
       {bubbles.length === 0 && (

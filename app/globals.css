@@ -369,17 +369,28 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Print / "Download PDF": clean light document regardless of theme. */
+/* Print / "Download PDF": the report page prints its playbook layout as an
+   A4 document. PrintButton switches to the light theme while printing; the
+   rules here drop the app chrome and keep cards from splitting across pages. */
+@page {
+  size: A4;
+  margin: 16mm 15mm 18mm;
+  @bottom-left {
+    content: "Mockstar interview playbook";
+    font: 500 8pt system-ui, sans-serif;
+    color: #858b95;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font: 500 8pt system-ui, sans-serif;
+    color: #858b95;
+  }
+}
+
 @media print {
+  html, body { background: #ffffff !important; color-scheme: light !important; }
+  html { font-size: 13px; }
   .no-print { display: none !important; }
-  body { background: #ffffff !important; }
-  * {
-    color: #191815 !important;
-    box-shadow: none !important;
-  }
-  .panel {
-    border: 1px solid #d9d5cc !important;
-    background: #ffffff !important;
-    break-inside: avoid;
-  }
+  .fade-up { animation: none !important; }
+  * { box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

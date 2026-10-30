@@ -2,8 +2,9 @@ import "server-only";
 
 // Two-tier model. A user is Pro when they've earned it (a referral converted)
 // or an admin flipped their isPro override; everyone else is Normal. The owner
-// (OWNER_EMAIL) is a superset of Pro for testing/administration. Pro is earned,
-// never bought.
+// (OWNER_EMAIL) is a superset of Pro for testing/administration. Demo accounts
+// (DEMO_EMAILS) are Pro with no usage caps, for live pitches - but no admin.
+// Pro is earned, never bought.
 export interface Permissions {
   isPro: boolean; // for the PRO badge
   canPreviewQuestions: boolean; // see the generated questions before taking it
@@ -12,6 +13,7 @@ export interface Permissions {
   canCustomizeCommunity: boolean; // tweak a community template when personalizing
   maxAttempts: number; // attempts per interview
   maxInterviews: number; // interviews a user may own
+  unlimitedUsage: boolean; // skip the hourly/daily rate limits (owner + demo)
 }
 
 const NORMAL: Permissions = {
@@ -22,6 +24,7 @@ const NORMAL: Permissions = {
   canCustomizeCommunity: false,
   maxAttempts: 3,
   maxInterviews: 5,
+  unlimitedUsage: false,
 };
 
 const PRO: Permissions = {
@@ -32,6 +35,7 @@ const PRO: Permissions = {
   canCustomizeCommunity: true,
   maxAttempts: 5,
   maxInterviews: 20,
+  unlimitedUsage: false,
 };
 
 const OWNER: Permissions = {
@@ -42,7 +46,10 @@ const OWNER: Permissions = {
   canCustomizeCommunity: true,
   maxAttempts: 99,
   maxInterviews: 999,
+  unlimitedUsage: true,
 };
+
+const DEMO: Permissions = { ...OWNER, canEditQuestions: false };
 
 // The single Pro rule: an admin grant or a converted referral, unless an
 // admin has explicitly turned Pro off for this user.
@@ -60,10 +67,18 @@ export function isOwner(email: string | null | undefined): boolean {
   return !!owner && !!email && email.trim().toLowerCase() === owner;
 }
 
+// Comma-separated list, e.g. DEMO_EMAILS=demo@example.com,demo2@example.com
+export function isDemo(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const list = (process.env.DEMO_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return list.includes(email.trim().toLowerCase());
+}
+
 export function getPermissions(
   user: { email: string; isPro?: boolean } | null | undefined
 ): Permissions {
   if (!user) return NORMAL;
   if (isOwner(user.email)) return OWNER;
+  if (isDemo(user.email)) return DEMO;
   return user.isPro ? PRO : NORMAL;
 }

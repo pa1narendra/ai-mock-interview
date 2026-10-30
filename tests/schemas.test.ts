@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { interviewRequestSchema, reportSchema, questionFeedbackSchema, MAX_INTERVIEW_ATTEMPTS, transcriptSchema, countUserTurns, MIN_USER_TURNS_FOR_REFERRAL } from "@/lib/schemas";
+import { interviewRequestSchema, reportSchema, questionFeedbackSchema, transcriptSchema, countUserTurns, MIN_ANSWERS_FOR_ATTEMPT } from "@/lib/schemas";
 
 const base = {
   role: "Frontend Developer",
   level: "mid",
   type: "mixed",
   techstack: "React, TypeScript",
-  amount: 5,
+  amount: 15,
   jd: "",
 };
 
@@ -23,18 +23,20 @@ describe("interviewRequestSchema", () => {
   });
 
   it("coerces FormData string values", () => {
-    const parsed = interviewRequestSchema.safeParse({ ...base, amount: "7", useSavedResume: "true" });
+    const parsed = interviewRequestSchema.safeParse({ ...base, amount: "17", useSavedResume: "true" });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
-      expect(parsed.data.amount).toBe(7);
+      expect(parsed.data.amount).toBe(17);
       expect(parsed.data.useSavedResume).toBe(true);
     }
   });
 
-  it("bounds the question count to 1-20", () => {
-    expect(interviewRequestSchema.safeParse({ ...base, amount: 0 }).success).toBe(false);
-    expect(interviewRequestSchema.safeParse({ ...base, amount: 21 }).success).toBe(false);
-    expect(interviewRequestSchema.safeParse({ ...base, amount: 20 }).success).toBe(true);
+  it("requires 15-25 questions, like a real interview", () => {
+    expect(interviewRequestSchema.safeParse({ ...base, amount: 5 }).success).toBe(false);
+    expect(interviewRequestSchema.safeParse({ ...base, amount: 14 }).success).toBe(false);
+    expect(interviewRequestSchema.safeParse({ ...base, amount: 15 }).success).toBe(true);
+    expect(interviewRequestSchema.safeParse({ ...base, amount: 25 }).success).toBe(true);
+    expect(interviewRequestSchema.safeParse({ ...base, amount: 26 }).success).toBe(false);
   });
 
   it("rejects an oversized job description", () => {
@@ -87,13 +89,6 @@ describe("questionFeedbackSchema", () => {
   });
 });
 
-describe("constants", () => {
-  it("attempt limit is a small positive integer", () => {
-    expect(MAX_INTERVIEW_ATTEMPTS).toBeGreaterThan(0);
-    expect(Number.isInteger(MAX_INTERVIEW_ATTEMPTS)).toBe(true);
-  });
-});
-
 describe("transcriptSchema", () => {
   it("accepts a normal transcript", () => {
     const result = transcriptSchema.safeParse([
@@ -121,7 +116,7 @@ describe("countUserTurns", () => {
     ])).toBe(2);
   });
 
-  it("keeps a one-line 'hi' below the referral threshold", () => {
-    expect(countUserTurns([{ role: "user", content: "hi" }])).toBeLessThan(MIN_USER_TURNS_FOR_REFERRAL);
+  it("keeps a one-line 'hi' below the answer threshold", () => {
+    expect(countUserTurns([{ role: "user", content: "hi" }])).toBeLessThan(MIN_ANSWERS_FOR_ATTEMPT);
   });
 });

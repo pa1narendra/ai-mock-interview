@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getPermissions } from "@/lib/permissions";
-import { transcriptSchema } from "@/lib/schemas";
+import { countUserTurns, MIN_ANSWERS_FOR_ATTEMPT, transcriptSchema } from "@/lib/schemas";
 
 // Attempts are counted from transcripts (an interview you completed consumes
 // an attempt even if report generation failed), with legacy reports counted
@@ -39,6 +39,10 @@ export async function saveTranscript(params: { interviewId: string; transcript: 
         const parsed = transcriptSchema.safeParse(params.transcript);
         if (!parsed.success) return { success: false as const };
         const transcript = parsed.data;
+        // Too short to score: don't spend an attempt on it.
+        if (countUserTurns(transcript) < MIN_ANSWERS_FOR_ATTEMPT) {
+            return { success: false as const, tooShort: true as const };
+        }
 
         // Only the owner takes an interview (others personalize a copy).
         const [interview] = await db.select({ id: interviews.id, userId: interviews.userId })

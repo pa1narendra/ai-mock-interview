@@ -6,6 +6,7 @@ import ScoreTrends from '@/components/score-trends';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { getMyInterviews, getCommunityInterviews } from '@/lib/actions/interviews';
 import { getMyReportsByInterview, getMyScoreHistory } from '@/lib/actions/reports';
+import { getPermissions } from '@/lib/permissions';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 const Page = async () => {
   const user = await getCurrentUser();
   if (!user) redirect('/sign-in');
+  const { maxAttempts } = getPermissions(user);
 
   const [myInterviews, communityInterviews] = await Promise.all([
     getMyInterviews(),
@@ -51,7 +53,7 @@ const Page = async () => {
         <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(290px,1fr))]">
           {(myInterviews ?? []).length > 0 ? (
             myInterviews?.map((interview) => (
-              <InterviewCard interview={interview} report={reports[interview.id] ?? null} deletable key={interview.id} />
+              <InterviewCard interview={interview} report={reports[interview.id] ?? null} maxAttempts={maxAttempts} deletable key={interview.id} />
             ))
           ) : (
             <p className="text-mist-500">Nothing here yet - create your first interview above.</p>
@@ -64,7 +66,7 @@ const Page = async () => {
         <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(290px,1fr))]">
           {(communityInterviews ?? []).length > 0 ? (
             communityInterviews?.map((interview) => (
-              <InterviewCard interview={interview} report={null} community key={interview.id} />
+              <InterviewCard interview={interview} report={null} maxAttempts={maxAttempts} community key={interview.id} />
             ))
           ) : (
             <p className="text-mist-500">No community interviews yet - yours could be the first.</p>

@@ -13,6 +13,9 @@ export type QuotaResult = { ok: true } | { ok: false; status: 403 | 429; message
 // The checks short-circuit so a blocked request doesn't also burn a slot in
 // the next counter.
 export async function checkGenerationQuota(user: User): Promise<QuotaResult> {
+  const perms = getPermissions(user);
+  if (perms.unlimitedUsage) return { ok: true };
+
   const hourly = await checkRateLimit(user.id, "generate", 10);
   if (!hourly.ok) {
     return { ok: false, status: 429, message: "Too many interviews generated. Try again in an hour." };
@@ -22,7 +25,6 @@ export async function checkGenerationQuota(user: User): Promise<QuotaResult> {
     return { ok: false, status: 429, message: "You've hit today's interview-generation limit. Please try again tomorrow." };
   }
 
-  const perms = getPermissions(user);
   const [{ count: ownedInterviews }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(interviews)

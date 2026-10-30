@@ -43,7 +43,8 @@ export async function POST(request: Request) {
 
   // Attempts are checked for resumes too - the handle comes from the client
   // and is never verified here, so it must not be a way around the limits.
-  const maxAttempts = getPermissions(user).maxAttempts;
+  const perms = getPermissions(user);
+  const maxAttempts = perms.maxAttempts;
   const attemptsUsed = await getAttemptsUsed(interview.id);
   if (attemptsUsed >= maxAttempts) {
     return Response.json(
@@ -52,7 +53,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (parsed.data.resumeHandle) {
+  if (perms.unlimitedUsage) {
+    // Owner and demo accounts: no daily voice caps.
+  } else if (parsed.data.resumeHandle) {
     // Resuming an in-progress session is not a new interview, but resumes
     // get their own cap so a made-up handle can't mint unlimited tokens.
     // A long interview resumes every ~10 min, so this stays well above real use.

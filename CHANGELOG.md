@@ -4,6 +4,32 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.6.4] - 2026-10-30
+
+### Changed
+- Interviews now have 15-25 questions (default 15), like a real interview. Five wasn't enough material to learn from.
+- The interviewer behaves like a real one. After each answer it decides whether to move on, ask one follow-up, press on a vague answer until it gets specifics, or run a short deep dive (problem, your role, hardest decision, result, what you'd change) on something substantial such as a resume project.
+- The report is now a coach's playbook: score strip with category scores, "Fix these before your next attempt" checklist, "Keep doing", progress across attempts, job coverage, and a rehearsal sheet per question (weakest first) with "Say it like this". The PDF uses the same layout on A4, in light mode whatever your theme, named after the role and attempt, with page numbers.
+- The full transcript moved to its own page (a "Full transcript" button on the report) and is no longer in the PDF.
+- The live transcript box is taller.
+
+### Added
+- Live captions while you answer, using the browser's built-in speech recognition (Chrome, Edge, Safari desktop). Gemini only transcribes after you pause, so long answers used to show nothing until the end. The captions are display-only; the saved transcript and scoring still use Gemini's text.
+- Demo accounts: emails listed in `DEMO_EMAILS` get Pro with no usage caps (interviews, attempts, daily limits), without admin access. The owner account also skips the daily caps now.
+
+### Fixed
+- AI feedback no longer shows raw markdown (asterisks, backticks) in the report; the scorer is told to write plain text.
+
+## [0.6.3] - 2026-10-30
+
+### Fixed
+- Ending an interview with fewer than 3 answers no longer uses an attempt or produces a 0/100 report. Nothing is saved, the page shows "Ended early - not scored", and you can start again. The End dialog tells you this before you confirm, and the server enforces the same rule.
+- Refreshing or closing the tab during an interview now shows the browser's "Leave this page?" warning, since answers are only saved when the interview ends.
+- Interview cards show your real attempt limit ("try 1/5" for Pro) instead of always "/3".
+
+### Changed
+- `.env.example` documents `OWNER_EMAIL` and `NEXT_PUBLIC_REQUIRE_EMAIL_VERIFICATION`, and is now committed. The `.env*` ignore rule had kept it out of the repo.
+
 ## [0.6.2] - 2026-10-29
 
 ### Added

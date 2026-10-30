@@ -2,7 +2,6 @@ import dayjs from 'dayjs';
 import Link from 'next/link';
 import { Calendar, Star, ArrowUpRight } from 'lucide-react';
 import { roleAccent, roleInitials, scoreTone } from '@/lib/utils';
-import { MAX_INTERVIEW_ATTEMPTS } from '@/lib/schemas';
 import TechBadges from './tech-badges';
 import DeleteInterviewButton from './delete-interview-button';
 
@@ -11,11 +10,13 @@ const InterviewCard = ({
   report,
   deletable = false,
   community = false,
+  maxAttempts,
 }: {
   interview: Interview;
   report: InterviewReport | null;
   deletable?: boolean;
   community?: boolean;
+  maxAttempts: number; // the viewer's tier limit (Normal 3 / Pro 5)
 }) => {
   const { id, role, type, techstack, createdAt } = interview;
   const normalizedType = /mix/gi.test(type) ? 'Mixed' : type;
@@ -59,7 +60,7 @@ const InterviewCard = ({
               </span>
               /100
             </span>
-            {report && <span className="text-xs">try {report.attempt}/{MAX_INTERVIEW_ATTEMPTS}</span>}
+            {report && <span className="text-xs">try {report.attempt}/{maxAttempts}</span>}
           </div>
         </div>
 

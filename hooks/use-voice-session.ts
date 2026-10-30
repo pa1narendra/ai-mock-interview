@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import { MicPermissionError, PcmRecorder } from "@/lib/audio/recorder";
 import { PcmPlayer } from "@/lib/audio/player";
+import { LiveCaption } from "@/lib/audio/live-caption";
 
 export enum SessionStatus {
   IDLE = "IDLE",
@@ -49,6 +50,7 @@ export function useVoiceSession(interviewId: string) {
   const sessionRef = useRef<Session | null>(null);
   const recorderRef = useRef<PcmRecorder | null>(null);
   const playerRef = useRef<PcmPlayer | null>(null);
+  const liveCaptionRef = useRef<LiveCaption | null>(null);
   const userBufferRef = useRef("");
   const modelBufferRef = useRef("");
   const resumeHandleRef = useRef<string | undefined>(undefined);
@@ -83,6 +85,8 @@ export function useVoiceSession(interviewId: string) {
     }
     recorderRef.current?.stop();
     recorderRef.current = null;
+    liveCaptionRef.current?.stop();
+    liveCaptionRef.current = null;
     playerRef.current?.close();
     playerRef.current = null;
     const session = sessionRef.current;
@@ -160,8 +164,11 @@ export function useVoiceSession(interviewId: string) {
       }
 
       if (content?.inputTranscription?.text) {
+        // Gemini's transcription is the one we keep: it replaces the live
+        // browser caption, which then starts fresh for the next answer.
         userBufferRef.current += content.inputTranscription.text;
         setCaption({ role: "user", content: userBufferRef.current });
+        liveCaptionRef.current?.reset();
       }
       if (content?.outputTranscription?.text) {
         // The model replying marks the end of the user's turn.
@@ -281,6 +288,8 @@ export function useVoiceSession(interviewId: string) {
       player.onPlaybackStart = () => {
         isSpeakingRef.current = true;
         setIsSpeaking(true);
+        // Anything heard from here is the interviewer's own voice.
+        liveCaptionRef.current?.reset();
       };
       player.onPlaybackEnd = () => {
         isSpeakingRef.current = false;
@@ -299,9 +308,21 @@ export function useVoiceSession(interviewId: string) {
         },
         () => {
           lastActivityRef.current = Date.now();
+          // No live captions in this browser: at least show that we hear them.
+          if (!LiveCaption.supported && !isSpeakingRef.current && !userBufferRef.current) {
+            setCaption((current) => (current?.role === "user" ? current : { role: "user", content: "Listening..." }));
+          }
         }
       );
       recorderRef.current = recorder;
+
+      // Live word-by-word caption while the candidate talks (display only).
+      const liveCaption = new LiveCaption();
+      liveCaption.start((text) => {
+        if (!text || isSpeakingRef.current || userBufferRef.current) return;
+        setCaption({ role: "user", content: text });
+      });
+      liveCaptionRef.current = liveCaption;
 
       await connect();
       setStatus(SessionStatus.LIVE);

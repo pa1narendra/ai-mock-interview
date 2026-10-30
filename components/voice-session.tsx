@@ -2,6 +2,7 @@
 
 import { createReport } from '@/lib/actions/reports';
 import { saveTranscript } from '@/lib/actions/transcripts';
+import { countUserTurns, MIN_ANSWERS_FOR_ATTEMPT } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
 import { SessionStatus, useVoiceSession } from '@/hooks/use-voice-session';
 import { useRouter } from 'next/navigation';
@@ -31,6 +32,7 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
   const [confirming, setConfirming] = useState<'start' | 'end' | null>(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [notCounted, setNotCounted] = useState(false);
   const hasGeneratedReport = useRef(false);
   const transcriptIdRef = useRef<string | null>(null);
 
@@ -38,9 +40,11 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
   // a model outage can never lose the interview - worst case the report is
   // generated later from the stored transcript.
   const finishInterview = useCallback(async () => {
-    if (messages.length === 0) {
-      toast.error('No conversation was recorded, so a report could not be generated.');
-      router.push('/dashboard');
+    // Too short to score (usually an accidental start or end): nothing is
+    // saved and no attempt is used - the candidate can simply start again.
+    if (countUserTurns(messages) < MIN_ANSWERS_FOR_ATTEMPT) {
+      setNotCounted(true);
+      toast.info(`This attempt wasn't counted - interviews need at least ${MIN_ANSWERS_FOR_ATTEMPT} answers to be scored. Start again whenever you're ready.`);
       return;
     }
     setIsSavingReport(true);
@@ -75,8 +79,24 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
   }, [status, finishInterview]);
 
   const isLive = status === SessionStatus.LIVE;
+  // Answers so far, including one still being spoken.
+  const answersSoFar = countUserTurns(messages) + (caption?.role === 'user' && caption.content.trim() ? 1 : 0);
 
-  // Elapsed-time counter while live (audio-only Live sessions cap at ~15 min).
+  // Answers are only saved when the interview ends, so leaving mid-session
+  // (refresh, closed tab) would lose them - ask the browser to confirm.
+  useEffect(() => {
+    if (!isLive && !isSavingReport) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isLive, isSavingReport]);
+
+  // Elapsed-time counter while live. Sessions can run long: context window
+  // compression lifts the Live API's length cap, and resumption covers the
+  // ~10 min connection resets.
   // Derived from a start timestamp so the effect never sets state synchronously.
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -99,7 +119,7 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
             isLive ? 'bg-spark-400 animate-pulse' : status === SessionStatus.CONNECTING ? 'bg-ember-400 animate-pulse' : 'bg-mist-500'
           )}
         />
-        {statusLabel[status]}
+        {status === SessionStatus.ENDED && notCounted ? 'Ended early - not scored' : statusLabel[status]}
         {isLive && <span className="ml-1 tabular-nums text-mist-500">{mmss}</span>}
       </div>
 
@@ -169,13 +189,14 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
         description={
           <>
             The interviewer starts speaking as soon as you&apos;re connected, so find a quiet spot and have your mic
-            ready. This uses attempt {attempt} of {maxAttempts}.
+            ready. It counts as attempt {attempt} of {maxAttempts} once you&apos;ve given {MIN_ANSWERS_FOR_ATTEMPT} answers.
           </>
         }
         confirmLabel="Start interview"
         onCancel={() => setConfirming(null)}
         onConfirm={() => {
           setConfirming(null);
+          setNotCounted(false);
           hasGeneratedReport.current = false;
           transcriptIdRef.current = null;
           void start();
@@ -187,10 +208,18 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
         icon={<PhoneOff className="size-4" />}
         title="End the interview now?"
         description={
-          <>
-            Your answers so far will be scored as attempt {attempt} of {maxAttempts}. You can&apos;t pick this
-            session back up once it ends.
-          </>
+          answersSoFar < MIN_ANSWERS_FOR_ATTEMPT ? (
+            <>
+              {`You've given ${answersSoFar} answer${answersSoFar === 1 ? '' : 's'} so far. Interviews with fewer than ` +
+                `${MIN_ANSWERS_FOR_ATTEMPT} answers aren't scored, so ending now won't use an attempt - but this ` +
+                `session can't be picked back up.`}
+            </>
+          ) : (
+            <>
+              Your answers so far will be scored as attempt {attempt} of {maxAttempts}. You can&apos;t pick this
+              session back up once it ends.
+            </>
+          )
         }
         confirmLabel="End interview"
         cancelLabel="Keep going"

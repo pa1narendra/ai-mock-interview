@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-export const MAX_INTERVIEW_ATTEMPTS = 3;
-
 // Prebuilt Gemini Live voices offered in the interview form.
 export const VOICE_OPTIONS = [
   { value: "Aoede", label: "Aoede (warm)" },
@@ -12,6 +10,13 @@ export const VOICE_OPTIONS = [
 
 const VOICE_VALUES = VOICE_OPTIONS.map((v) => v.value) as [string, ...string[]];
 
+// A real interview runs 15+ questions; fewer doesn't give enough material to
+// learn from. The interviewer follows up between them, so this is the plan,
+// not the whole conversation.
+export const MIN_QUESTIONS = 15;
+export const MAX_QUESTIONS = 25;
+const questionCountMessage = `Enter a number between ${MIN_QUESTIONS} and ${MAX_QUESTIONS}`;
+
 export const interviewRequestSchema = z
   .object({
     role: z.string().trim().min(2, "Role is required").max(100),
@@ -19,10 +24,10 @@ export const interviewRequestSchema = z
     type: z.enum(["technical", "behavioural", "mixed"]),
     techstack: z.string().trim().max(200).optional().default(""),
     amount: z.coerce
-      .number({ message: "Enter a number between 1 and 20" })
+      .number({ message: questionCountMessage })
       .int()
-      .min(1)
-      .max(20),
+      .min(MIN_QUESTIONS, questionCountMessage)
+      .max(MAX_QUESTIONS, questionCountMessage),
     jd: z.string().trim().max(15_000).optional().default(""),
     useSavedResume: z.coerce.boolean().optional().default(false),
     voice: z.enum(VOICE_VALUES).optional(),
@@ -45,9 +50,10 @@ export const transcriptSchema = z
   .min(1)
   .max(500);
 
-// A referral only converts when the referred user's interview had real
-// substance - not a "hi" and hang up, or a scripted one-line transcript.
-export const MIN_USER_TURNS_FOR_REFERRAL = 3;
+// An interview needs real answers before it's scored: below this it doesn't
+// use an attempt (an accidental Start/End shouldn't cost one or produce a
+// 0/100 report), and it can't convert a referral.
+export const MIN_ANSWERS_FOR_ATTEMPT = 3;
 
 export function countUserTurns(turns: Array<{ role: string; content: string }>): number {
   return turns.filter((turn) => turn.role === "user" && turn.content.trim().length > 0).length;
@@ -61,10 +67,10 @@ export const interviewFormSchema = z.object({
   type: z.enum(["technical", "behavioural", "mixed"]),
   techstack: z.string().trim().max(200),
   amount: z
-    .number({ message: "Enter a number between 1 and 20" })
+    .number({ message: questionCountMessage })
     .int()
-    .min(1)
-    .max(20),
+    .min(MIN_QUESTIONS, questionCountMessage)
+    .max(MAX_QUESTIONS, questionCountMessage),
   jd: z.string().trim().max(15_000, "Job description is too long (15,000 characters max)"),
   voice: z.enum(VOICE_VALUES),
 });
