@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { user as userTable } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { effectivePro, isOwner } from "@/lib/permissions";
+import { attachReferrerToUser } from "@/lib/referral-attach";
 
 export interface ReferralInfo {
   code: string;
@@ -65,34 +66,16 @@ export async function getOrCreateReferral(): Promise<ReferralInfo | null> {
   }
 }
 
-// Called right after signup: records who referred this user (once). The
-// referrer is only *credited* later, when this user completes their first
-// interview (see lib/actions/transcripts.ts).
+// Records who referred the signed-in user (once) - used after Google sign-in
+// and as a fallback when arriving from a verification link. Email sign-ups
+// are attributed server-side as the account is created (lib/auth.ts).
 export async function attachReferrer(code: string): Promise<void> {
-  // Never throws: attribution is best-effort and must never block the
-  // post-signup redirect.
   if (!code) return;
   try {
     const user = await getCurrentUser();
-    if (!user) return;
-
-    const [self] = await db
-      .select({ referredBy: userTable.referredBy })
-      .from(userTable)
-      .where(eq(userTable.id, user.id))
-      .limit(1);
-    if (!self || self.referredBy) return; // already attributed
-
-    const [referrer] = await db
-      .select({ id: userTable.id })
-      .from(userTable)
-      .where(eq(userTable.referralCode, code))
-      .limit(1);
-    if (!referrer || referrer.id === user.id) return; // invalid or self-referral
-
-    await db.update(userTable).set({ referredBy: referrer.id }).where(eq(userTable.id, user.id));
+    if (user) await attachReferrerToUser(user.id, code);
   } catch {
-    /* not migrated / transient - ignore, attribution is best-effort */
+    /* best-effort */
   }
 }
 

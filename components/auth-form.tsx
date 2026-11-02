@@ -1,13 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import Link from "next/link"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Loader2, MailCheck } from "lucide-react"
 
 import { authClient } from "@/lib/auth-client"
 import { attachReferrer } from "@/lib/actions/referral"
@@ -35,6 +34,60 @@ const authFormSchema = (type: FormType) => {
   })
 }
 
+// Where email-verification links land: the user is signed in straight away.
+const VERIFIED_CALLBACK = "/dashboard"
+
+const RESEND_COOLDOWN = 60
+
+// Shown after sign-up, and when an unverified account tries to sign in.
+const CheckInbox = ({ email, callbackURL, onBack }: { email: string; callbackURL: string; onBack: () => void }) => {
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN)
+  const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(id)
+  }, [cooldown])
+
+  async function resend() {
+    setSending(true)
+    const { error } = await authClient.sendVerificationEmail({ email, callbackURL })
+    setSending(false)
+    if (error) {
+      toast.error(error.message ?? "Could not send the email. Please try again in a minute.")
+      return
+    }
+    toast.success("Sent - check your inbox.")
+    setCooldown(RESEND_COOLDOWN)
+  }
+
+  return (
+    <div className="panel w-full max-w-md p-10 fade-up">
+      <div className="flex flex-col items-center gap-5 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-highlight-soft text-highlight">
+          <MailCheck className="size-6" />
+        </span>
+        <div className="space-y-2">
+          <h2 className="text-2xl">Check your inbox</h2>
+          <p className="text-sm">
+            We sent a confirmation link to <span className="break-all font-semibold text-foreground">{email}</span>.
+            Click it to activate your account - you&apos;ll be signed in straight away.
+          </p>
+          <p className="text-xs text-muted-foreground">Nothing there after a minute? Check spam or promotions.</p>
+        </div>
+        <button type="button" className="btn-outline w-full" onClick={resend} disabled={sending || cooldown > 0}>
+          {sending && <Loader2 className="size-4 animate-spin" />}
+          {cooldown > 0 ? `Resend email in ${cooldown}s` : "Resend email"}
+        </button>
+        <button type="button" onClick={onBack} className="text-sm font-medium text-muted-foreground hover:text-foreground">
+          Use a different email
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const GoogleIcon = () => (
   <svg className="size-4" viewBox="0 0 24 24" aria-hidden="true">
     <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.63h6.46a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.58-5.17 3.58-8.8Z" />
@@ -45,8 +98,9 @@ const GoogleIcon = () => (
 )
 
 const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: string }) => {
-  const router = useRouter()
   const [googleLoading, setGoogleLoading] = useState(false)
+  // Set when we're waiting for the user to confirm their email.
+  const [pending, setPending] = useState<{ email: string; callbackURL: string } | null>(null)
   const formSchema = authFormSchema(type)
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,10 +116,12 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
     const { name, email, password } = values;
 
     if (type === "sign-in") {
-      const { error } = await authClient.signIn.email({ email, password });
+      const callbackURL = VERIFIED_CALLBACK;
+      const { error } = await authClient.signIn.email({ email, password, callbackURL });
       if (error) {
         if (error.code === "EMAIL_NOT_VERIFIED") {
-          toast.error("Please verify your email first - we've re-sent you the link.");
+          // sendOnSignIn has just emailed a fresh link.
+          setPending({ email, callbackURL });
           return;
         }
         toast.error(
@@ -80,7 +136,12 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
       // avoids the router.push+refresh race that could strand the user here.
       window.location.assign("/dashboard");
     } else {
-      const { error } = await authClient.signUp.email({ name: name!, email, password });
+      const enteredCode = (values.referralCode ?? "").trim() || referralCode;
+      const callbackURL = VERIFIED_CALLBACK;
+      // referralCode isn't a Better Auth field: the server's user-created hook
+      // reads it and records the referrer (lib/auth.ts).
+      const signUpBody = { name: name!, email, password, callbackURL, referralCode: enteredCode ?? "" };
+      const { error } = await authClient.signUp.email(signUpBody as Parameters<typeof authClient.signUp.email>[0]);
       if (error) {
         toast.error(
           error.code === "USER_ALREADY_EXISTS"
@@ -89,13 +150,10 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
         );
         return;
       }
-      const enteredCode = (values.referralCode ?? "").trim() || referralCode;
       if (REQUIRE_EMAIL_VERIFICATION) {
-        toast.success("Account created! Check your email for a verification link, then sign in.");
-        router.push(enteredCode ? `/sign-in?ref=${encodeURIComponent(enteredCode)}` : "/sign-in");
+        setPending({ email, callbackURL });
         return;
       }
-      await recordReferral(enteredCode);
       // Hard navigation: reliable with the freshly-set session cookie, and not
       // cancellable by a router refresh (the cause of the stuck signup screen).
       window.location.assign("/dashboard");
@@ -104,9 +162,10 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
 
   async function onGoogleSignIn() {
     setGoogleLoading(true);
+    // Google skips this form's submit, so the dashboard attaches the code.
     const { error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/dashboard",
+      callbackURL: referralCode ? `/dashboard?ref=${encodeURIComponent(referralCode)}` : "/dashboard",
     });
     // On success the browser redirects to Google, so we only land here on error.
     if (error) {
@@ -116,6 +175,10 @@ const AuthForm = ({ type, referralCode }: { type: FormType; referralCode?: strin
   }
 
   const isSignIn = type === "sign-in"
+
+  if (pending) {
+    return <CheckInbox email={pending.email} callbackURL={pending.callbackURL} onBack={() => setPending(null)} />
+  }
 
   return (
     <div className="panel w-full max-w-md p-10 fade-up">

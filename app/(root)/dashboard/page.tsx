@@ -7,14 +7,23 @@ import { getCurrentUser } from '@/lib/actions/auth';
 import { getMyInterviews, getCommunityInterviews } from '@/lib/actions/interviews';
 import { getMyReportsByInterview, getMyScoreHistory } from '@/lib/actions/reports';
 import { getPermissions } from '@/lib/permissions';
+import { attachReferrer } from '@/lib/actions/referral';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
 };
 
-const Page = async () => {
+const Page = async ({ searchParams }: RouteParams) => {
   const user = await getCurrentUser();
   if (!user) redirect('/sign-in');
+
+  // Arriving from an email-verification link: record the referral code that
+  // was entered at sign-up (best-effort, only ever attaches once).
+  const { ref } = await searchParams;
+  if (typeof ref === 'string' && ref) {
+    await attachReferrer(ref);
+    redirect('/dashboard');
+  }
   const { maxAttempts } = getPermissions(user);
 
   const [myInterviews, communityInterviews] = await Promise.all([

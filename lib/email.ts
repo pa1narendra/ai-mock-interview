@@ -3,7 +3,7 @@ import "server-only";
 // Minimal email sender via the Resend REST API (free tier: resend.com).
 // Without RESEND_API_KEY the email is logged to the server console instead,
 // so the reset flow stays usable in local development.
-export async function sendEmail(params: { to: string; subject: string; text: string }) {
+export async function sendEmail(params: { to: string; subject: string; text: string; html?: string }) {
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
@@ -24,6 +24,7 @@ export async function sendEmail(params: { to: string; subject: string; text: str
       to: [params.to],
       subject: params.subject,
       text: params.text,
+      ...(params.html ? { html: params.html } : {}),
     }),
   });
 

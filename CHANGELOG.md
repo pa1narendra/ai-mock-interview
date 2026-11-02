@@ -4,6 +4,20 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.6.5] - 2026-11-02
+
+### Added
+- Email verification is ready to switch on with `NEXT_PUBLIC_REQUIRE_EMAIL_VERIFICATION=true`. After sign-up, a "Check your inbox" screen shows where the link went, with a Resend button (60s cooldown). Clicking the link verifies the email and signs the user straight in to the dashboard.
+- Signing in with an unverified email sends a fresh link and shows the same screen. Before, it only claimed to have sent one.
+- Designed HTML emails for confirming an email and resetting a password: a button instead of a bare link, the expiry time, a fallback link, and a plain-text version.
+
+### Changed
+- Referral credit now needs a verified referred account as well as a scored interview, in either order.
+- The referrer is recorded on the server when the account is created, from the code entered at sign-up. It no longer depends on which verification email the user clicks or on signing in again. Google sign-ups still attach it through the dashboard link.
+
+### Security
+- Names in emails are HTML-escaped, so a name can't inject links or markup into an email.
+
 ## [0.6.4] - 2026-10-30
 
 ### Changed
