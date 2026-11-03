@@ -196,7 +196,12 @@ const ReportPlaybook = ({ candidateName, interview, report, allReports, maxAttem
                 </div>
                 <dl className="mt-4 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[7rem_1fr] print:grid-cols-[6rem_1fr]">
                   <dt className="font-medium text-muted-foreground">You said</dt>
-                  <dd className="text-text-secondary">{plain(item.answerSummary)}</dd>
+                  <dd className="text-text-secondary">
+                    {item.evidence && (
+                      <q className="mb-1 block italic text-foreground">{plain(item.evidence)}</q>
+                    )}
+                    {plain(item.answerSummary)}
+                  </dd>
                   <dt className="font-medium text-muted-foreground">Feedback</dt>
                   <dd className="text-text-secondary">{plain(item.feedback)}</dd>
                 </dl>

@@ -1,0 +1,70 @@
+{
+  "label": "weak-swe-intern",
+  "role": "Software Engineer Intern",
+  "level": "junior",
+  "type": "mixed",
+  "techstack": [
+    "JavaScript",
+    "React",
+    "Data Structures"
+  ],
+  "questions": [
+    "Tell me about yourself and what specifically interests you in this Software Engineer Intern role.",
+    "What do you hope to learn or achieve during an internship with our company?",
+    "Describe a challenging technical problem you've faced in a project. How did you approach it, and what was the outcome?",
+    "How do you usually approach learning a new programming language or framework?",
+    "Can you explain the differences between let, const, and var in JavaScript?",
+    "What is asynchronous JavaScript, and can you provide an example of when you would use it?",
+    "What are the core concepts of React that you find most appealing for building user interfaces?",
+    "How do you pass data from a parent component to a child component in React?",
+    "Explain the purpose of the virtual DOM in React and how it contributes to performance.",
+    "What are data structures, and why are they fundamental to efficient programming?",
+    "Describe a common data structure like an array or a linked list. What are its main advantages and disadvantages?",
+    "When might you choose to use a JavaScript object over an array, or vice versa, to store related data?",
+    "Imagine you're working on a team and encounter a bug in a piece of code you didn't write. How would you go about debugging it?",
+    "What are some best practices you consider when writing clean and maintainable code?",
+    "Do you have any questions for us about the role, our team, or the company?"
+  ],
+  "turns": [
+    {
+      "role": "assistant",
+      "content": "Tell me about yourself and what specifically interests you in this Software Engineer Intern role."
+    },
+    {
+      "role": "user",
+      "content": "Um, I'm a final year computer science student. I like coding and I saw this internship, so I applied."
+    },
+    {
+      "role": "assistant",
+      "content": "What do you hope to learn or achieve during an internship with our company?"
+    },
+    {
+      "role": "user",
+      "content": "I want to learn how real companies work and get experience."
+    },
+    {
+      "role": "assistant",
+      "content": "Describe a challenging technical problem you've faced in a project. How did you approach it, and what was the outcome?"
+    },
+    {
+      "role": "user",
+      "content": "I made a to-do app in React for a college project. Some things didn't work at first but I fixed them."
+    },
+    {
+      "role": "assistant",
+      "content": "How do you usually approach learning a new programming language or framework?"
+    },
+    {
+      "role": "user",
+      "content": "I watch YouTube tutorials mostly."
+    },
+    {
+      "role": "assistant",
+      "content": "Can you explain the differences between let, const, and var in JavaScript?"
+    },
+    {
+      "role": "user",
+      "content": "let and const are newer, var is old. I usually use const."
+    }
+  ]
+}

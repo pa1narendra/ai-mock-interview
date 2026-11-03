@@ -1,0 +1,94 @@
+{
+  "label": "average-swe-intern",
+  "role": "Software Engineer Intern",
+  "level": "junior",
+  "type": "mixed",
+  "techstack": [
+    "JavaScript",
+    "React",
+    "Data Structures"
+  ],
+  "questions": [
+    "Tell me about yourself and what specifically interests you in this Software Engineer Intern role.",
+    "What do you hope to learn or achieve during an internship with our company?",
+    "Describe a challenging technical problem you've faced in a project. How did you approach it, and what was the outcome?",
+    "How do you usually approach learning a new programming language or framework?",
+    "Can you explain the differences between let, const, and var in JavaScript?",
+    "What is asynchronous JavaScript, and can you provide an example of when you would use it?",
+    "What are the core concepts of React that you find most appealing for building user interfaces?",
+    "How do you pass data from a parent component to a child component in React?",
+    "Explain the purpose of the virtual DOM in React and how it contributes to performance.",
+    "What are data structures, and why are they fundamental to efficient programming?",
+    "Describe a common data structure like an array or a linked list. What are its main advantages and disadvantages?",
+    "When might you choose to use a JavaScript object over an array, or vice versa, to store related data?",
+    "Imagine you're working on a team and encounter a bug in a piece of code you didn't write. How would you go about debugging it?",
+    "What are some best practices you consider when writing clean and maintainable code?",
+    "Do you have any questions for us about the role, our team, or the company?"
+  ],
+  "turns": [
+    {
+      "role": "assistant",
+      "content": "Tell me about yourself and what specifically interests you in this Software Engineer Intern role."
+    },
+    {
+      "role": "user",
+      "content": "So I am a final year B.Tech student in computer science. I have done some projects in web development, mostly React and a bit of Node. I am interested in this role because I want to work as a software engineer and this is a good company to start."
+    },
+    {
+      "role": "assistant",
+      "content": "What do you hope to learn or achieve during an internship with our company?"
+    },
+    {
+      "role": "user",
+      "content": "I hope to learn industry practices, like how code is written in a real team, and improve my skills in React and JavaScript. Also I want to learn about working with deadlines."
+    },
+    {
+      "role": "assistant",
+      "content": "Describe a challenging technical problem you've faced in a project. How did you approach it, and what was the outcome?"
+    },
+    {
+      "role": "user",
+      "content": "In my e-commerce project the cart was not updating properly when we added items. I checked the code and found that the state was not being updated correctly, so I fixed the state logic and then it worked."
+    },
+    {
+      "role": "assistant",
+      "content": "How do you usually approach learning a new programming language or framework?"
+    },
+    {
+      "role": "user",
+      "content": "I usually watch a course on Udemy or YouTube first, then I try to build a small project with it. If I get stuck I search on Stack Overflow."
+    },
+    {
+      "role": "assistant",
+      "content": "Can you explain the differences between let, const, and var in JavaScript?"
+    },
+    {
+      "role": "user",
+      "content": "var is the old way and it is function scoped. let and const are block scoped. const cannot be changed at all after you declare it, so I use it for things that do not change."
+    },
+    {
+      "role": "assistant",
+      "content": "What is asynchronous JavaScript, and can you provide an example of when you would use it?"
+    },
+    {
+      "role": "user",
+      "content": "Asynchronous JavaScript means the code does not wait, it runs in the background. For example when we call an API we use async await or promises so the page does not freeze."
+    },
+    {
+      "role": "assistant",
+      "content": "What are the core concepts of React that you find most appealing for building user interfaces?"
+    },
+    {
+      "role": "user",
+      "content": "I like that React has components, so you can reuse things. And the virtual DOM makes it fast. Hooks are also nice because they make it easier than classes."
+    },
+    {
+      "role": "assistant",
+      "content": "How do you pass data from a parent component to a child component in React?"
+    },
+    {
+      "role": "user",
+      "content": "We pass data using props. The parent gives props to the child and the child can use them."
+    }
+  ]
+}

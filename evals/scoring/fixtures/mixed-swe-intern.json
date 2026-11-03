@@ -1,0 +1,94 @@
+{
+  "label": "mixed-swe-intern",
+  "role": "Software Engineer Intern",
+  "level": "junior",
+  "type": "mixed",
+  "techstack": [
+    "JavaScript",
+    "React",
+    "Data Structures"
+  ],
+  "questions": [
+    "Tell me about yourself and what specifically interests you in this Software Engineer Intern role.",
+    "What do you hope to learn or achieve during an internship with our company?",
+    "Describe a challenging technical problem you've faced in a project. How did you approach it, and what was the outcome?",
+    "How do you usually approach learning a new programming language or framework?",
+    "Can you explain the differences between let, const, and var in JavaScript?",
+    "What is asynchronous JavaScript, and can you provide an example of when you would use it?",
+    "What are the core concepts of React that you find most appealing for building user interfaces?",
+    "How do you pass data from a parent component to a child component in React?",
+    "Explain the purpose of the virtual DOM in React and how it contributes to performance.",
+    "What are data structures, and why are they fundamental to efficient programming?",
+    "Describe a common data structure like an array or a linked list. What are its main advantages and disadvantages?",
+    "When might you choose to use a JavaScript object over an array, or vice versa, to store related data?",
+    "Imagine you're working on a team and encounter a bug in a piece of code you didn't write. How would you go about debugging it?",
+    "What are some best practices you consider when writing clean and maintainable code?",
+    "Do you have any questions for us about the role, our team, or the company?"
+  ],
+  "turns": [
+    {
+      "role": "assistant",
+      "content": "Tell me about yourself and what specifically interests you in this Software Engineer Intern role."
+    },
+    {
+      "role": "user",
+      "content": "I am a final year student. I built a hostel complaints portal that our warden actually uses now, it has around 150 complaints logged a month, built with React and Firebase. I am interested in this role because I enjoy the frontend side and want to work on a product people use daily."
+    },
+    {
+      "role": "assistant",
+      "content": "What do you hope to learn or achieve during an internship with our company?"
+    },
+    {
+      "role": "user",
+      "content": "Honestly I just want to get good at writing production code. In college nobody reviews my code, so I want feedback from senior engineers."
+    },
+    {
+      "role": "assistant",
+      "content": "Describe a challenging technical problem you've faced in a project. How did you approach it, and what was the outcome?"
+    },
+    {
+      "role": "user",
+      "content": "The hostel portal had a problem where two wardens could mark the same complaint resolved and it overwrote the notes. I added a Firestore transaction that checks the status before updating and shows a message if someone else already changed it. After that we had no more lost notes, and I learned about race conditions the hard way."
+    },
+    {
+      "role": "assistant",
+      "content": "How do you usually approach learning a new programming language or framework?"
+    },
+    {
+      "role": "user",
+      "content": "Um, so, I think basically I just, like, start doing things, and then, like, if something breaks I look it up, and basically it works out, I mean it depends on the thing, but basically I learn by doing it, you know, like that."
+    },
+    {
+      "role": "assistant",
+      "content": "Can you explain the differences between let, const, and var in JavaScript?"
+    },
+    {
+      "role": "user",
+      "content": "var, let and const are all the same really, they all just declare variables. The only difference is the name, I think const is faster because it is compiled differently."
+    },
+    {
+      "role": "assistant",
+      "content": "What is asynchronous JavaScript, and can you provide an example of when you would use it?"
+    },
+    {
+      "role": "user",
+      "content": "Async is when you use setTimeout. Like if you want something to happen after two seconds."
+    },
+    {
+      "role": "assistant",
+      "content": "What are the core concepts of React that you find most appealing for building user interfaces?"
+    },
+    {
+      "role": "user",
+      "content": "Components and the one-way data flow. In my portal the complaint list is one component and each complaint card is a child, and the state lives in the list, so when a status changes everything below updates and I never have to sync things manually."
+    },
+    {
+      "role": "assistant",
+      "content": "How do you pass data from a parent component to a child component in React?"
+    },
+    {
+      "role": "user",
+      "content": "Through props, and if it goes many levels deep I used Context for the logged-in warden so I did not have to pass it through every component."
+    }
+  ]
+}

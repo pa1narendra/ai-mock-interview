@@ -9,9 +9,12 @@ const CATEGORIES = [
   "Confidence and Clarity",
 ] as const;
 
-function delta(points: ScorePoint[], pick: (p: ScorePoint) => number) {
-  if (points.length < 2) return 0;
-  return Math.round(pick(points[points.length - 1]) - pick(points[0]));
+// pick returns undefined when a report didn't score that category; the delta
+// compares the first and latest reports that did.
+function delta(points: ScorePoint[], pick: (p: ScorePoint) => number | undefined) {
+  const values = points.map(pick).filter((v): v is number => typeof v === "number");
+  if (values.length < 2) return 0;
+  return Math.round(values[values.length - 1] - values[0]);
 }
 
 const DeltaBadge = ({ value }: { value: number }) => {
@@ -67,8 +70,9 @@ const ScoreTrends = ({ points }: { points: ScorePoint[] }) => {
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-2.5 max-sm:grid-cols-1">
         {CATEGORIES.map((name) => {
-          const score = (p: ScorePoint) => p.categoryScores.find((c) => c.name === name)?.score ?? 0;
+          const score = (p: ScorePoint) => p.categoryScores.find((c) => c.name === name)?.score;
           const current = score(latest);
+          if (current === undefined) return null; // not assessed in the latest interview
           return (
             <div key={name} className="flex items-center justify-between gap-3 text-sm">
               <span className="text-mist-300">{name}</span>

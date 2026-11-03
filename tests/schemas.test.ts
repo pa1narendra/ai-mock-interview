@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { interviewRequestSchema, reportSchema, questionFeedbackSchema, transcriptSchema, countUserTurns, MIN_ANSWERS_FOR_ATTEMPT } from "@/lib/schemas";
+import { interviewRequestSchema, transcriptSchema, countUserTurns, MIN_ANSWERS_FOR_ATTEMPT } from "@/lib/schemas";
 
 const base = {
   role: "Frontend Developer",
@@ -45,47 +45,6 @@ describe("interviewRequestSchema", () => {
 
   it("rejects missing/short role", () => {
     expect(interviewRequestSchema.safeParse({ ...base, role: "x" }).success).toBe(false);
-  });
-});
-
-describe("reportSchema", () => {
-  const category = { name: "Communication Skills", score: 70, comment: "ok" };
-  const validReport = {
-    totalScore: 70,
-    categoryScores: Array.from({ length: 5 }, () => category),
-    strengths: ["clear"],
-    areasForImprovement: ["depth"],
-    finalAssessment: "Decent.",
-  };
-
-  it("accepts exactly five categories", () => {
-    expect(reportSchema.safeParse(validReport).success).toBe(true);
-  });
-
-  it("rejects four or six categories", () => {
-    expect(
-      reportSchema.safeParse({ ...validReport, categoryScores: Array.from({ length: 4 }, () => category) }).success
-    ).toBe(false);
-    expect(
-      reportSchema.safeParse({ ...validReport, categoryScores: Array.from({ length: 6 }, () => category) }).success
-    ).toBe(false);
-  });
-});
-
-describe("questionFeedbackSchema", () => {
-  it("accepts an array of per-question feedback entries", () => {
-    const parsed = questionFeedbackSchema.safeParse([
-      { question: "Tell me about yourself", answerSummary: "Gave a concise overview", score: 72, feedback: "Good, add metrics", idealAnswer: "Lead with impact" },
-    ]);
-    expect(parsed.success).toBe(true);
-  });
-
-  it("accepts an empty array (interviewer never got to any question)", () => {
-    expect(questionFeedbackSchema.safeParse([]).success).toBe(true);
-  });
-
-  it("rejects entries missing required fields", () => {
-    expect(questionFeedbackSchema.safeParse([{ question: "x", score: 50 }]).success).toBe(false);
   });
 });
 

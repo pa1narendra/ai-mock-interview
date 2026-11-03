@@ -1,0 +1,78 @@
+{
+  "label": "strong-data-analyst",
+  "role": "Data Analyst",
+  "level": "junior",
+  "type": "technical",
+  "techstack": [
+    "SQL",
+    "Excel",
+    "Python"
+  ],
+  "questions": [
+    "Can you explain the difference between a LEFT JOIN and an INNER JOIN?",
+    "How do you identify and handle duplicate records in a SQL table?",
+    "What is the purpose of the GROUP BY clause and how does it work with aggregate functions?",
+    "Imagine you have a table of sales data. How would you write a query to find the total sales for each product category?",
+    "What are SQL window functions and when would you use them?",
+    "How do you use pivot tables to summarize and analyze large datasets in Excel?",
+    "Can you explain the purpose of VLOOKUP or HLOOKUP and its common uses?",
+    "What are some common Excel functions you use for data cleaning or manipulation?",
+    "Describe a scenario where you used conditional formatting in Excel to highlight important data trends.",
+    "What are some fundamental data structures in Python you've used for data analysis?",
+    "How do you load a CSV file into a pandas DataFrame and inspect its initial structure?",
+    "Explain how you would handle missing values in a pandas DataFrame.",
+    "What is the purpose of the groupby method in pandas and how does it facilitate data aggregation?",
+    "Why are you interested in a junior Data Analyst position at our company?",
+    "Can you describe a time when you encountered a challenge with data accuracy or consistency and how you addressed it?"
+  ],
+  "turns": [
+    {
+      "role": "assistant",
+      "content": "Can you explain the difference between a LEFT JOIN and an INNER JOIN?"
+    },
+    {
+      "role": "user",
+      "content": "An INNER JOIN returns only rows that match in both tables, while a LEFT JOIN returns every row from the left table and fills the right side with nulls where there's no match. In my retail project I used a LEFT JOIN from products to sales, so products with zero sales still showed up in the report."
+    },
+    {
+      "role": "assistant",
+      "content": "How do you identify and handle duplicate records in a SQL table?"
+    },
+    {
+      "role": "user",
+      "content": "I find duplicates with GROUP BY on the columns that define a unique record and HAVING COUNT(*) greater than 1. To remove them while keeping one copy, I use ROW_NUMBER partitioned by those columns and delete rows where the row number is above 1. In the store's billing data that removed about 1,200 duplicate bills."
+    },
+    {
+      "role": "assistant",
+      "content": "What is the purpose of the GROUP BY clause and how does it work with aggregate functions?"
+    },
+    {
+      "role": "user",
+      "content": "GROUP BY collapses rows that share the same values into one group, and aggregate functions like SUM, COUNT or AVG then calculate one result per group. Every column in the SELECT has to be either grouped or aggregated. To filter on the aggregate, I use HAVING rather than WHERE."
+    },
+    {
+      "role": "assistant",
+      "content": "Imagine you have a table of sales data. How would you write a query to find the total sales for each product category?"
+    },
+    {
+      "role": "user",
+      "content": "I'd write SELECT category, SUM(quantity times unit price) AS total_sales FROM sales JOIN products ON the product id GROUP BY category ORDER BY total_sales descending. If returns are stored as negative quantities, the SUM nets them out automatically."
+    },
+    {
+      "role": "assistant",
+      "content": "What are SQL window functions and when would you use them?"
+    },
+    {
+      "role": "user",
+      "content": "Window functions calculate across related rows without collapsing them, so each row keeps its detail. I use them for running totals with SUM OVER ordered by date, for ranking with RANK or ROW_NUMBER, and for comparing a month to the previous one with LAG. For the store, LAG showed which weeks sales dropped compared to the week before."
+    },
+    {
+      "role": "assistant",
+      "content": "How do you use pivot tables to summarize and analyze large datasets in Excel?"
+    },
+    {
+      "role": "user",
+      "content": "I put the raw data in a table, insert a pivot table, and drag category into rows, month into columns and sales into values as a sum. Then I add a slicer for the store branch. It turned two years of billing data into a one-screen summary the owner could filter himself."
+    }
+  ]
+}

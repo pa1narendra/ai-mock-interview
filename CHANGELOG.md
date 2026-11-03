@@ -4,6 +4,17 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.7.0] - 2026-11-03
+
+### Changed
+- Report scores are now consistent. The same interview scored five times used to land up to 14 points apart (50 to 64 for one mid-range transcript), so a student could "improve" without changing a word. With the new scorer, repeat scores of the same interview land within 0-8 points, and usually match exactly.
+- Every answer is scored against a written scale (what a 90, 75, 60, 40 and 20 answer looks like for a fresher), at temperature 0. Factual errors, including half-truths, cap an answer at 50. Short answers with no reasoning or example score below 40, and long answers without substance don't score higher for length. Speech-to-text mistakes aren't held against the candidate.
+- Category scores are calculated from per-answer ratings instead of being picked by the AI, so they always agree with the answers. A category no answer gave evidence for (e.g. Cultural Fit in an all-technical interview) is left out instead of guessed. The dashboard trends skip it too, instead of showing 0.
+
+### Added
+- "You said" on the report quotes the candidate's own words for each answer. Quotes are left out of public share links, which never include the transcript.
+- A scoring consistency eval (`npx tsx evals/scoring/run.mts`): five fixture transcripts from weak to strong, scored repeatedly with the app's real prompt, reporting the spread. Touches no database.
+
 ## [0.6.5] - 2026-11-02
 
 ### Added

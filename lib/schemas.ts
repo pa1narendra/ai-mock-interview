@@ -114,28 +114,3 @@ export const jdMatchSchema = z.object({
   comment: z.string(),
 });
 
-export const questionFeedbackSchema = z.array(
-  z.object({
-    question: z.string(),
-    answerSummary: z.string(),
-    score: z.number(),
-    feedback: z.string(),
-    idealAnswer: z.string(),
-  })
-);
-
-// No totalScore: the server computes it from the categories (averageScore).
-export const reportSchema = z.object({
-  categoryScores: z
-    .array(
-      z.object({
-        name: z.string(),
-        score: z.number(),
-        comment: z.string(),
-      })
-    )
-    .length(5),
-  strengths: z.array(z.string()),
-  areasForImprovement: z.array(z.string()),
-  finalAssessment: z.string(),
-});

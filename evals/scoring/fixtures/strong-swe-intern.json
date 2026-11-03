@@ -1,0 +1,78 @@
+{
+  "label": "strong-swe-intern",
+  "role": "Software Engineer Intern",
+  "level": "junior",
+  "type": "mixed",
+  "techstack": [
+    "JavaScript",
+    "React",
+    "Data Structures"
+  ],
+  "questions": [
+    "Tell me about yourself and what specifically interests you in this Software Engineer Intern role.",
+    "What do you hope to learn or achieve during an internship with our company?",
+    "Describe a challenging technical problem you've faced in a project. How did you approach it, and what was the outcome?",
+    "How do you usually approach learning a new programming language or framework?",
+    "Can you explain the differences between let, const, and var in JavaScript?",
+    "What is asynchronous JavaScript, and can you provide an example of when you would use it?",
+    "What are the core concepts of React that you find most appealing for building user interfaces?",
+    "How do you pass data from a parent component to a child component in React?",
+    "Explain the purpose of the virtual DOM in React and how it contributes to performance.",
+    "What are data structures, and why are they fundamental to efficient programming?",
+    "Describe a common data structure like an array or a linked list. What are its main advantages and disadvantages?",
+    "When might you choose to use a JavaScript object over an array, or vice versa, to store related data?",
+    "Imagine you're working on a team and encounter a bug in a piece of code you didn't write. How would you go about debugging it?",
+    "What are some best practices you consider when writing clean and maintainable code?",
+    "Do you have any questions for us about the role, our team, or the company?"
+  ],
+  "turns": [
+    {
+      "role": "assistant",
+      "content": "Tell me about yourself and what specifically interests you in this Software Engineer Intern role."
+    },
+    {
+      "role": "user",
+      "content": "I'm a final year CS student. Over the last year I built three React projects, and the one I'm proudest of is a timetable planner that about 300 students in my department use every week. This internship interests me because your team ships user-facing web products, and I want to learn how a real team designs, reviews and releases features at that scale."
+    },
+    {
+      "role": "assistant",
+      "content": "What do you hope to learn or achieve during an internship with our company?"
+    },
+    {
+      "role": "user",
+      "content": "I want to come out able to own a small feature end to end: understanding the requirement, writing tested code, getting it through code review, and seeing it in production. I'd also like to learn how your team debugs issues in production, because that's something college projects never teach."
+    },
+    {
+      "role": "assistant",
+      "content": "Describe a challenging technical problem you've faced in a project. How did you approach it, and what was the outcome?"
+    },
+    {
+      "role": "user",
+      "content": "In the timetable planner, the page froze when students added more than 30 courses, because every cell re-rendered on each change. I profiled it with React DevTools, memoized the grid rows, and moved the clash detection into a useMemo. Render time dropped from about 400 milliseconds to under 50, and the complaints stopped."
+    },
+    {
+      "role": "assistant",
+      "content": "How do you usually approach learning a new programming language or framework?"
+    },
+    {
+      "role": "user",
+      "content": "I start with the official docs and build something tiny but real in the first two days, like a small API or a single page. Then I read other people's code on GitHub to pick up idioms. When I learned TypeScript, I converted one of my own projects file by file, which taught me the type system much faster than tutorials did."
+    },
+    {
+      "role": "assistant",
+      "content": "Can you explain the differences between let, const, and var in JavaScript?"
+    },
+    {
+      "role": "user",
+      "content": "var is function-scoped and hoisted, so it can be used before its declaration and leaks out of blocks. let and const are block-scoped and sit in the temporal dead zone until declared. const prevents reassignment but not mutation, so a const array can still be pushed to. I default to const and use let only when a value must change."
+    },
+    {
+      "role": "assistant",
+      "content": "What is asynchronous JavaScript, and can you provide an example of when you would use it?"
+    },
+    {
+      "role": "user",
+      "content": "Asynchronous JavaScript lets slow work like network requests run without blocking the main thread. With async and await, I write it like normal code: in my planner I await a fetch for the course list, show a loading state meanwhile, and handle errors in a try-catch so a failed request shows a message instead of breaking the page."
+    }
+  ]
+}

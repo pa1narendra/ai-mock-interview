@@ -17,6 +17,7 @@ interface GenerateArgs<SCHEMA extends z.ZodType> {
   prompt?: string;
   system?: string;
   messages?: ModelMessage[];
+  temperature?: number;
 }
 
 function hasFileParts(messages?: ModelMessage[]): boolean {
