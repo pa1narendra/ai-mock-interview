@@ -18,6 +18,9 @@ interface GenerateArgs<SCHEMA extends z.ZodType> {
   system?: string;
   messages?: ModelMessage[];
   temperature?: number;
+  // false skips Gemini's "thinking" step: much faster and cheaper for simple
+  // generation (questions), where the extra reasoning doesn't help.
+  thinking?: boolean;
 }
 
 function hasFileParts(messages?: ModelMessage[]): boolean {
@@ -35,8 +38,10 @@ function hasFileParts(messages?: ModelMessage[]): boolean {
 // wall - so after exhausting retries on the primary model, walk down a chain
 // of fallbacks that rarely share the same congestion.
 export async function resilientGenerateObject<SCHEMA extends z.ZodType>(
-  args: GenerateArgs<SCHEMA>
+  { thinking, ...args }: GenerateArgs<SCHEMA>
 ): Promise<{ object: z.infer<SCHEMA> }> {
+  const googleOptions =
+    thinking === false ? { providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } } } : {};
   const attempts: Array<{ label: string; run: () => Promise<{ object: unknown }> }> = [
     {
       label: PRIMARY_MODEL,
@@ -45,6 +50,7 @@ export async function resilientGenerateObject<SCHEMA extends z.ZodType>(
           model: google(PRIMARY_MODEL),
           maxRetries: 4,
           ...args,
+          ...googleOptions,
         } as Parameters<typeof generateObject>[0]),
     },
     {
@@ -54,6 +60,7 @@ export async function resilientGenerateObject<SCHEMA extends z.ZodType>(
           model: google(FALLBACK_MODEL),
           maxRetries: 2,
           ...args,
+          ...googleOptions,
         } as Parameters<typeof generateObject>[0]),
     },
   ];

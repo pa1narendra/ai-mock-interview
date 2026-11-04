@@ -34,7 +34,11 @@ export async function POST(request: Request) {
     return Response.json({ success: false, message: "Invalid input" }, { status: 400 });
   }
 
-  const interview = await getInterview(parsed.data.interviewId);
+  // Both lookups are scoped to the signed-in user, so run them together.
+  const [interview, attemptsUsed] = await Promise.all([
+    getInterview(parsed.data.interviewId),
+    getAttemptsUsed(parsed.data.interviewId),
+  ]);
   // Only the owner can take an interview directly; the system prompt below
   // contains the questions, which are personal to the owner.
   if (!interview || interview.userId !== user.id) {
@@ -45,7 +49,6 @@ export async function POST(request: Request) {
   // and is never verified here, so it must not be a way around the limits.
   const perms = getPermissions(user);
   const maxAttempts = perms.maxAttempts;
-  const attemptsUsed = await getAttemptsUsed(interview.id);
   if (attemptsUsed >= maxAttempts) {
     return Response.json(
       { success: false, message: `You've used all ${maxAttempts} attempts for this interview.` },

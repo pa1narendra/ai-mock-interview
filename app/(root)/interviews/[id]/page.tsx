@@ -24,14 +24,13 @@ const Page = async ({ params }: RouteParams) => {
   const user = await getCurrentUser();
   if (!user) redirect('/sign-in');
 
-  const interview = await getInterview(id);
+  const [interview, attemptsUsed] = await Promise.all([getInterview(id), getAttemptsUsed(id)]);
   if (!interview) redirect('/dashboard');
   // Someone else's interview: personalize it instead of taking it verbatim.
   if (interview.userId !== user.id) redirect(`/interviews/new?template=${id}`);
 
   const perms = getPermissions(user);
   const maxAttempts = perms.maxAttempts;
-  const attemptsUsed = await getAttemptsUsed(id);
   const attemptsExhausted = attemptsUsed >= maxAttempts;
 
   const accent = roleAccent(interview.role);

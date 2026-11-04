@@ -131,6 +131,7 @@ export async function POST(request: Request) {
     const { object } = await resilientGenerateObject({
       schema: generationSchema,
       messages,
+      thinking: false,
     });
 
     const result = object as {

@@ -4,6 +4,14 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.7.1] - 2026-11-04
+
+### Changed
+- Creating an interview is about 2.5x faster (7.7s to 3s for 15 questions) and about 4x cheaper. Question writing no longer uses Gemini's "thinking" step, which spent ~900 extra output tokens on a task that doesn't need it. "Practice your gaps" gets the same speed-up.
+- Pages no longer query the database just to know who is signed in. The session is cached in a signed cookie for 5 minutes and carries the Pro fields, so most clicks skip two database round trips. Granting or revoking Pro, or signing out on another device, can take up to 5 minutes to apply.
+- Sign-up, sign-in for unverified accounts and password reset respond without waiting for the email to be sent. The email goes out right after the response.
+- The interview page and the voice token check look up the interview and its attempts at the same time, and the interview is fetched once per page instead of twice.
+
 ## [0.7.0] - 2026-11-03
 
 ### Changed

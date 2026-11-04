@@ -19,9 +19,21 @@ const loadCurrentUser = cache(async (): Promise<User | null> => {
     if (!session) return null;
 
     const { id, name, email } = session.user;
+    const fields = session.user as { isPro?: boolean; proRevoked?: boolean; referralCount?: number };
 
-    // See effectivePro() for the rule. Wrapped so the app still works
-    // before the referral migration is applied.
+    // See effectivePro() for the rule. The Pro fields normally come with the
+    // session (lib/auth.ts additionalFields); the query is only a fallback.
+    if (typeof fields.isPro === "boolean") {
+        return {
+            id, name, email,
+            isPro: effectivePro({
+                isPro: fields.isPro,
+                proRevoked: fields.proRevoked ?? false,
+                referralCount: fields.referralCount ?? 0,
+            }),
+        };
+    }
+
     let isPro = false;
     try {
         const [row] = await db

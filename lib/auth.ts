@@ -4,7 +4,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
+import { sendEmailInBackground } from "@/lib/email";
 import { actionEmail } from "@/lib/email-templates";
 import { creditReferrerOnce } from "@/lib/referral-credit";
 import { attachReferrerToUser } from "@/lib/referral-attach";
@@ -24,7 +24,7 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     requireEmailVerification,
     sendResetPassword: async ({ user, url }) => {
-      await sendEmail({
+      sendEmailInBackground({
         to: user.email,
         subject: "Reset your Mockstar password",
         ...actionEmail({
@@ -48,7 +48,7 @@ export const auth = betterAuth({
     // An unverified user who tries to sign in gets a fresh link.
     sendOnSignIn: true,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendEmail({
+      sendEmailInBackground({
         to: user.email,
         subject: "Confirm your email for Mockstar",
         ...actionEmail({
@@ -83,6 +83,19 @@ export const auth = betterAuth({
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 1 week
+    // A signed copy of the session lives in a cookie for 5 minutes, so most
+    // requests don't need a database round trip to know who is signed in.
+    // Trade-off: sign-out elsewhere or a Pro change takes up to 5 min to apply.
+    cookieCache: { enabled: true, maxAge: 5 * 60 },
+  },
+  // Carried on the session (and its cookie cache) so getCurrentUser can work
+  // out Pro without a separate query. input: false - never set at sign-up.
+  user: {
+    additionalFields: {
+      isPro: { type: "boolean", input: false, defaultValue: false },
+      proRevoked: { type: "boolean", input: false, defaultValue: false },
+      referralCount: { type: "number", input: false, defaultValue: 0 },
+    },
   },
   // The sign-up form sends the referral code with the request, so the referrer
   // is recorded as the account is created - before email verification, and

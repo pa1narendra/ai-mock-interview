@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from "react";
 import { desc, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -101,6 +102,7 @@ export async function createFocusedInterview(
     try {
         const { object } = await resilientGenerateObject({
             schema: z.object({ questions: z.array(z.string().min(1)).min(1) }),
+            thinking: false,
             prompt: buildFocusedQuestionsPrompt(
                 { role: source.role, level: source.level, type: source.type, techstack: source.techstack, jd: source.jdText },
                 weakAreas,
@@ -129,14 +131,20 @@ export async function createFocusedInterview(
     }
 }
 
-export async function getInterview(id: string): Promise<Interview | null> {
-    const user = await getCurrentUser();
-    if (!user) return null;
-
+// Deduped per request: the page and its generateMetadata both ask for it.
+const loadInterview = cache(async (id: string) => {
     const [interview] = await db.select()
         .from(interviews)
         .where(eq(interviews.id, id))
         .limit(1);
+    return interview ?? null;
+});
+
+export async function getInterview(id: string): Promise<Interview | null> {
+    const user = await getCurrentUser();
+    if (!user) return null;
+
+    const interview = await loadInterview(id);
     if (!interview) return null;
 
     // Other users only ever see the public template fields (role, level,
