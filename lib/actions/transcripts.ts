@@ -1,5 +1,6 @@
 'use server';
 
+import { isUuid } from "@/lib/utils";
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -27,6 +28,7 @@ async function countAttempts(interviewId: string, userId: string): Promise<numbe
 }
 
 export async function getAttemptsUsed(interviewId: string): Promise<number> {
+    if (!isUuid(interviewId)) return 0;
     const user = await getCurrentUser();
     if (!user) return 0;
     return countAttempts(interviewId, user.id);
@@ -39,6 +41,7 @@ export async function saveTranscript(params: {
     ticket: string;
     usage?: unknown;
 }) {
+    if (!isUuid(params?.interviewId)) return { success: false as const };
     const { interviewId } = params;
     try {
         const user = await getCurrentUser();
@@ -93,6 +96,7 @@ export async function saveTranscript(params: {
 
 // The saved turns for one attempt, for read-only display on the report page.
 export async function getTranscriptTurns(interviewId: string, attempt: number): Promise<SavedMessage[]> {
+    if (!isUuid(interviewId)) return [];
     const user = await getCurrentUser();
     if (!user) return [];
 
@@ -111,6 +115,7 @@ export async function getTranscriptTurns(interviewId: string, attempt: number): 
 // Completed attempts whose report generation failed - shown on the report
 // page with a retry button.
 export async function getPendingTranscripts(interviewId: string): Promise<Array<{ id: string; attempt: number; createdAt: string }>> {
+    if (!isUuid(interviewId)) return [];
     const user = await getCurrentUser();
     if (!user) return [];
 

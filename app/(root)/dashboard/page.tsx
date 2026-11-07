@@ -26,16 +26,13 @@ const Page = async ({ searchParams }: RouteParams) => {
   }
   const { maxAttempts } = getPermissions(user);
 
-  const [myInterviews, communityInterviews] = await Promise.all([
+  const [myInterviews, communityInterviews, scoreHistory] = await Promise.all([
     getMyInterviews(),
     getCommunityInterviews(),
-  ]);
-
-  const allInterviews = [...(myInterviews ?? []), ...(communityInterviews ?? [])];
-  const [reports, scoreHistory] = await Promise.all([
-    getMyReportsByInterview(allInterviews.map((interview) => interview.id)),
     getMyScoreHistory(),
   ]);
+  // Community cards never show a report, so only your own interviews are looked up.
+  const reports = await getMyReportsByInterview((myInterviews ?? []).map((interview) => interview.id));
 
   return (
     <>

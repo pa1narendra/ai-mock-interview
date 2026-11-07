@@ -11,6 +11,7 @@ import { buildGenerationPrompt } from "@/lib/ai/prompts";
 import { resilientGenerateObject } from "@/lib/ai/generate";
 import { checkGenerationQuota } from "@/lib/generation-quota";
 import { getPermissions } from "@/lib/permissions";
+import { clampScore } from "@/lib/utils";
 import { type ModelMessage } from "ai";
 import { z } from "zod";
 
@@ -19,8 +20,6 @@ const MAX_MARKDOWN_CHARS = 12_000;
 
 // Loose on purpose - see the note in lib/schemas.ts. Limits enforced in code.
 const questionsSchema = z.array(z.string().min(1)).min(1);
-
-const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -176,7 +175,7 @@ export async function POST(request: Request) {
 
     const fitSnapshot: FitSnapshot | null = result.fitSnapshot
       ? {
-          matchScore: clamp(result.fitSnapshot.matchScore),
+          matchScore: clampScore(result.fitSnapshot.matchScore),
           verdict: result.fitSnapshot.verdict,
           matchedSkills: result.fitSnapshot.matchedSkills.slice(0, 15),
           missingSkills: result.fitSnapshot.missingSkills.slice(0, 10),

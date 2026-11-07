@@ -67,6 +67,9 @@ interface InterviewReport {
   createdAt: string;
 }
 
+// What an interview card shows about the latest attempt.
+type ReportSummary = Pick<InterviewReport, "attempt" | "totalScore" | "finalAssessment" | "createdAt">;
+
 interface Interview {
   id: string;
   role: string;

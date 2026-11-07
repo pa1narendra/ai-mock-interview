@@ -9,7 +9,7 @@ import { issueSessionTicket } from "@/lib/session-ticket";
 import { z } from "zod";
 
 const requestSchema = z.object({
-  interviewId: z.string().min(1).max(128),
+  interviewId: z.uuid(),
   resumeHandle: z.string().max(512).optional(),
 });
 

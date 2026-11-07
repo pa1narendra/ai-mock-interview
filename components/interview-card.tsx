@@ -13,7 +13,7 @@ const InterviewCard = ({
   maxAttempts,
 }: {
   interview: Interview;
-  report: InterviewReport | null;
+  report: ReportSummary | null;
   deletable?: boolean;
   community?: boolean;
   maxAttempts: number; // the viewer's tier limit (Normal 3 / Pro 5)

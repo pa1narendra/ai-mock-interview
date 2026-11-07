@@ -4,6 +4,26 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.7.3] - 2026-11-07
+
+**Database:** run `drizzle/0009_indexes.sql` once (adds 3 indexes, drops 2 redundant ones). The app works the same before or after, only faster with it.
+
+### Fixed
+- The community list no longer returns other users' planned questions, job descriptions or resume snapshots. It is a server action any signed-in user can call, and the questions of a targeted interview can name the owner's employers and projects. It now returns only the public template fields, the same rule as opening someone else's interview.
+- A malformed id in a URL (an interview, report or share link) no longer crashes the page with a 500. It is treated as not found.
+
+### Changed
+- Security headers on every response: no framing by other sites, no MIME sniffing, a strict referrer policy, HTTPS only, and the microphone allowed for this site only. The `X-Powered-By` header is gone.
+- The dashboard fetches only the latest attempt per interview and only the fields a card shows, instead of every report with all its feedback. It no longer looks up reports for community interviews, which never show one, and the score history loads alongside the interview lists.
+- The Gemini SDK loads in its own chunk after the interview page renders, instead of with the page.
+- Database indexes for score history (reports by user), sessions and accounts. Two indexes that duplicated a unique index are removed.
+
+### Added
+- Tests for the access rules: transcript saving (session ticket, ownership, attempt limits), deleting, interview privacy and the generation quota, against a fake database. CI now also checks that migrations are consistent and that `db/schema.ts` never changes without a migration.
+
+### Removed
+- `apply-referral-pro.mjs`, a one-off migration script that has already been applied, and duplicated score helpers.
+
 ## [0.7.2] - 2026-11-05
 
 **Before deploying, run this once on the database** (adds one nullable column, changes nothing else). Deploying first breaks every page that reads reports:

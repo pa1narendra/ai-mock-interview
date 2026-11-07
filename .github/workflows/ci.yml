@@ -38,5 +38,15 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Migrations
+        # Offline - no database is contacted. `check` catches conflicting or
+        # broken migration files; regenerating must produce nothing new, or
+        # db/schema.ts was changed without a migration (npm run db:generate).
+        run: |
+          npx drizzle-kit check
+          npx drizzle-kit generate
+          git diff --exit-code drizzle/
+          test -z "$(git status --porcelain drizzle/)"
+
       - name: Build
         run: npm run build

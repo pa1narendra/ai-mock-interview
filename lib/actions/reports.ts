@@ -15,12 +15,13 @@ import {
     MAX_QUESTIONS,
     MIN_ANSWERS_FOR_ATTEMPT,
 } from "@/lib/schemas";
-import { averageScore, clampScore } from "@/lib/utils";
+import { averageScore, clampScore, isUuid } from "@/lib/utils";
 
 // Generates a report from a transcript saved by saveTranscript(). The
 // transcript is durable, so a failure here loses nothing - the report page
 // offers a retry for any pending transcript.
 export async function createReport(transcriptId: string) {
+    if (!isUuid(transcriptId)) return { success: false as const };
     try {
         const user = await getCurrentUser();
         if (!user) return { success: false as const };
@@ -142,27 +143,30 @@ export async function createReport(transcriptId: string) {
 }
 
 // Batched lookup for list views: one auth check + one query instead of a
-// query per card. Returns the latest attempt per interview.
-export async function getMyReportsByInterview(interviewIds: string[]): Promise<Record<string, InterviewReport>> {
+// query per card. Returns only the latest attempt per interview, and only
+// the fields a card shows (the full rows carry every answer's feedback).
+export async function getMyReportsByInterview(interviewIds: string[]): Promise<Record<string, ReportSummary>> {
+    interviewIds = interviewIds.filter(isUuid);
     const user = await getCurrentUser();
     if (!user || interviewIds.length === 0) return {};
 
-    const rows = await db.select()
+    const rows = await db.selectDistinctOn([reports.interviewId], {
+        interviewId: reports.interviewId,
+        attempt: reports.attempt,
+        totalScore: reports.totalScore,
+        finalAssessment: reports.finalAssessment,
+        createdAt: reports.createdAt,
+    })
         .from(reports)
-        .where(and(eq(reports.userId, user.id), inArray(reports.interviewId, interviewIds)));
+        .where(and(eq(reports.userId, user.id), inArray(reports.interviewId, interviewIds)))
+        .orderBy(reports.interviewId, desc(reports.attempt));
 
-    const byInterview: Record<string, InterviewReport> = {};
-    for (const row of rows) {
-        const existing = byInterview[row.interviewId];
-        if (!existing || row.attempt > existing.attempt) {
-            byInterview[row.interviewId] = row;
-        }
-    }
-    return byInterview;
+    return Object.fromEntries(rows.map(({ interviewId, ...summary }) => [interviewId, summary]));
 }
 
 // All of the current user's attempts for one interview, oldest first.
 export async function getReportsForInterview(interviewId: string): Promise<InterviewReport[]> {
+    if (!isUuid(interviewId)) return [];
     const user = await getCurrentUser();
     if (!user) return [];
 
@@ -196,6 +200,7 @@ export async function getMyScoreHistory(): Promise<ScorePoint[]> {
 
 // Mints (or clears) the public share token for a report the user owns.
 export async function toggleReportShare(reportId: string): Promise<{ success: boolean; shareId?: string | null }> {
+    if (!isUuid(reportId)) return { success: false };
     const user = await getCurrentUser();
     if (!user) return { success: false };
 
@@ -213,6 +218,7 @@ export async function toggleReportShare(reportId: string): Promise<{ success: bo
 // Public, unauthenticated read of a shared report. Deliberately excludes the
 // transcript and any JD/resume-derived data - only the scored feedback.
 export async function getSharedReport(shareId: string): Promise<SharedReport | null> {
+    if (!isUuid(shareId)) return null;
     const [row] = await db.select({
         role: interviews.role,
         totalScore: reports.totalScore,
@@ -237,6 +243,7 @@ export async function getSharedReport(shareId: string): Promise<SharedReport | n
 }
 
 export async function getReportForInterview(interviewId: string): Promise<InterviewReport | null> {
+    if (!isUuid(interviewId)) return null;
     const user = await getCurrentUser();
     if (!user) return null;
 

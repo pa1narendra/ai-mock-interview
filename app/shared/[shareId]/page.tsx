@@ -4,16 +4,13 @@ import dayjs from "dayjs";
 import { notFound } from "next/navigation";
 import Logo from "@/components/logo";
 import { getSharedReport } from "@/lib/actions/reports";
+import { scoreBar as barTone, scoreTone } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Shared interview report",
   robots: { index: false },
 };
 
-const scoreTone = (score: number) =>
-  score >= 75 ? "text-success" : score >= 50 ? "text-warning" : score >= 25 ? "text-danger" : "text-worst";
-const barTone = (score: number) =>
-  score >= 75 ? "bg-success" : score >= 50 ? "bg-warning" : score >= 25 ? "bg-danger" : "bg-worst";
 
 const Page = async ({ params }: RouteParams) => {
   const { shareId } = await params;

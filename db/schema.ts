@@ -32,7 +32,10 @@ export const session = pgTable("session", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-});
+}, (table) => [
+  // Better Auth lists and revokes sessions by user.
+  index("session_user_id_idx").on(table.userId),
+]);
 
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
@@ -50,7 +53,10 @@ export const account = pgTable("account", {
   password: text("password"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  // Sign-in looks up the user's credential account.
+  index("account_user_id_idx").on(table.userId),
+]);
 
 export const verification = pgTable("verification", {
   id: text("id").primaryKey(),
@@ -124,7 +130,9 @@ export const reports = pgTable("reports", {
   scoredBy: text("scored_by"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [
-  index("reports_interview_user_idx").on(table.interviewId, table.userId),
+  // Score history and the dashboard read a user's reports across interviews.
+  // (Lookups by interview + user use the unique index below.)
+  index("reports_user_created_idx").on(table.userId, table.createdAt),
   // One report per attempt: a double-clicked "Generate report" can't save two.
   uniqueIndex("reports_interview_user_attempt_uq").on(table.interviewId, table.userId, table.attempt),
 ]);
@@ -148,7 +156,6 @@ export const transcripts = pgTable("transcripts", {
   // Database-enforced attempt numbering: two concurrent session-ends can't
   // create duplicate attempts (the loser fails and the UI offers a retry).
   uniqueIndex("transcripts_interview_user_attempt_uq").on(table.interviewId, table.userId, table.attempt),
-  index("transcripts_interview_user_idx").on(table.interviewId, table.userId),
 ]);
 
 export const rateLimits = pgTable("rate_limits", {

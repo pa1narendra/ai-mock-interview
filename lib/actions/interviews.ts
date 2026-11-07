@@ -1,5 +1,6 @@
 'use server';
 
+import { isUuid } from "@/lib/utils";
 import { cache } from "react";
 import { desc, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -24,18 +25,33 @@ export async function getMyInterviews(): Promise<Interview[] | null> {
         .orderBy(desc(interviews.createdAt));
 }
 
+// Other users' interviews: only the public template fields, the same rule
+// as getInterview. The questions, job description and resume/fit snapshots
+// are personal (targeted questions name the owner's employers and projects)
+// - and this is an exported server action, so whatever it returns could be
+// read by any signed-in user.
 export async function getCommunityInterviews(limit = 20): Promise<Interview[] | null> {
     const user = await getCurrentUser();
     if (!user) return null;
 
-    return db.select()
+    const rows = await db.select({
+        id: interviews.id,
+        role: interviews.role,
+        level: interviews.level,
+        type: interviews.type,
+        techstack: interviews.techstack,
+        userId: interviews.userId,
+        createdAt: interviews.createdAt,
+    })
         .from(interviews)
         .where(ne(interviews.userId, user.id))
         .orderBy(desc(interviews.createdAt))
         .limit(limit);
+    return rows.map((row) => ({ ...row, questions: [], jdText: null, resumeSnapshot: null, fitSnapshot: null, voice: null }));
 }
 
 export async function deleteInterview(id: string): Promise<{ success: boolean }> {
+    if (!isUuid(id)) return { success: false };
     const user = await getCurrentUser();
     if (!user) return { success: false };
 
@@ -55,6 +71,7 @@ export async function updateInterviewQuestions(
     id: string,
     questions: string[]
 ): Promise<{ success: boolean }> {
+    if (!isUuid(id)) return { success: false };
     const user = await getCurrentUser();
     if (!user) return { success: false };
 
@@ -77,6 +94,7 @@ export async function updateInterviewQuestions(
 export async function createFocusedInterview(
     sourceInterviewId: string
 ): Promise<{ success: boolean; interviewId?: string; message?: string }> {
+    if (!isUuid(sourceInterviewId)) return { success: false, message: "Interview not found" };
     const user = await getCurrentUser();
     if (!user) return { success: false, message: "Unauthorized" };
 
@@ -141,6 +159,7 @@ const loadInterview = cache(async (id: string) => {
 });
 
 export async function getInterview(id: string): Promise<Interview | null> {
+    if (!isUuid(id)) return null;
     const user = await getCurrentUser();
     if (!user) return null;
 

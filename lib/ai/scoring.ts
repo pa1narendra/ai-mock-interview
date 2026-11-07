@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 import { jdMatchSchema } from "@/lib/schemas";
-import { keepHeadAndTail } from "@/lib/utils";
+import { clampScore, keepHeadAndTail } from "@/lib/utils";
 
 // ~25k tokens: room for a long interview. Past that the middle is dropped,
 // never the final answers.
@@ -166,7 +166,6 @@ const RATING_KEY: Record<(typeof SCORE_CATEGORIES)[number], keyof ScoringResult[
   "Confidence and Clarity": "confidence",
 };
 
-const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 
 // The cap a listed mistake puts on an answer (the "factual error" hard rule).
 export const MISTAKE_CAP = 50;
@@ -202,10 +201,10 @@ export function categoryScoresFromAnswers(result: Pick<ScoringResult, "questionF
       .filter((r): r is number => typeof r === "number");
     if (ratings.length === 0) return null;
     const score = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-    return { name, score: clamp(score), comment: fromModel?.comment ?? "" };
+    return { name, score: clampScore(score), comment: fromModel?.comment ?? "" };
   }).filter((c) => c !== null);
   // No ratings at all (nothing answered): fall back to the model's categories.
   return scored.length > 0
     ? scored
-    : result.categoryScores.map((c) => ({ name: c.name, score: clamp(c.score), comment: c.comment }));
+    : result.categoryScores.map((c) => ({ name: c.name, score: clampScore(c.score), comment: c.comment }));
 }

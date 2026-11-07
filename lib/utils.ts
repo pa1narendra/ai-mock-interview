@@ -72,3 +72,11 @@ export function keepHeadAndTail(text: string, max: number, headShare = 0.3): str
   const head = Math.floor(budget * headShare);
   return text.slice(0, head) + marker + text.slice(text.length - (budget - head));
 }
+
+// Ids from URLs and the browser are checked before they reach Postgres:
+// a malformed value in a uuid column throws, which would show a 500 page
+// instead of "not found".
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}

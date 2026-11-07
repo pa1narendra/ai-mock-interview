@@ -64,6 +64,13 @@
       "when": 1793904147633,
       "tag": "0008_report_scored_by",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794079062514,
+      "tag": "0009_indexes",
+      "breakpoints": true
     }
   ]
 }

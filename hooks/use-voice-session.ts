@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  GoogleGenAI,
-  type LiveConnectConfig,
-  type LiveServerMessage,
-  type Session,
-} from "@google/genai";
+import type { LiveConnectConfig, LiveServerMessage, Session } from "@google/genai";
+
+// The Gemini SDK is large and only needed once the interview starts: it is
+// loaded in its own chunk, fetched in the background after the page renders.
+const loadGenAI = () => import("@google/genai");
 import { toast } from "sonner";
 import { MicPermissionError, PcmRecorder } from "@/lib/audio/recorder";
 import { PcmPlayer } from "@/lib/audio/player";
@@ -269,6 +268,7 @@ export function useVoiceSession(interviewId: string) {
       const { token, model, config, ticket } = await fetchToken(resumeHandle);
       ticketRef.current = ticket!;
 
+      const { GoogleGenAI } = await loadGenAI();
       const ai = new GoogleGenAI({
         apiKey: token!,
         httpOptions: { apiVersion: "v1alpha" },
@@ -404,6 +404,11 @@ export function useVoiceSession(interviewId: string) {
       }
     }
   }, [connect, teardown, setStatus, finish]);
+
+  // Warm the SDK chunk while the candidate reads the page, so Start isn't slower.
+  useEffect(() => {
+    void loadGenAI();
+  }, []);
 
   // Keep a local copy of the answers as they come in, so a crash or refresh
   // mid-interview can be recovered and scored (lib/interview-draft.ts).
