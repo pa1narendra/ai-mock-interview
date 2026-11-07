@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { Mic, PhoneOff, Loader2, RotateCcw } from 'lucide-react';
 import Transcript from '@/components/transcript';
 import ConfirmDialog from '@/components/confirm-dialog';
+import { clearDraft, loadDraft, type InterviewDraft, type LiveUsage } from '@/lib/interview-draft';
+import dayjs from 'dayjs';
 
 const statusLabel: Record<SessionStatus, string> = {
   [SessionStatus.IDLE]: 'Ready when you are',
@@ -28,21 +30,30 @@ interface VoiceSessionProps {
 
 const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSessionProps) => {
   const router = useRouter();
-  const { status, isSpeaking, messages, caption, start, end } = useVoiceSession(interviewId);
+  const { status, isSpeaking, messages, caption, start, end, getTicket, getUsage } = useVoiceSession(interviewId);
   const [confirming, setConfirming] = useState<'start' | 'end' | null>(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [notCounted, setNotCounted] = useState(false);
   const hasGeneratedReport = useRef(false);
   const transcriptIdRef = useRef<string | null>(null);
+  // An interview that was cut off (crash, refresh, closed tab) before its
+  // answers reached the server - offered for scoring on the next visit.
+  const [draft, setDraft] = useState<InterviewDraft | null>(null);
+  useEffect(() => {
+    const found = loadDraft(interviewId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only readable after mount
+    if (found && countUserTurns(found.messages) >= MIN_ANSWERS_FOR_ATTEMPT) setDraft(found);
+  }, [interviewId]);
 
   // Save-first pipeline: the transcript is persisted before any AI call, so
   // a model outage can never lose the interview - worst case the report is
   // generated later from the stored transcript.
-  const finishInterview = useCallback(async () => {
+  const saveAndScore = useCallback(async (answers: SavedMessage[], ticket: string | null, usage?: LiveUsage) => {
     // Too short to score (usually an accidental start or end): nothing is
     // saved and no attempt is used - the candidate can simply start again.
-    if (countUserTurns(messages) < MIN_ANSWERS_FOR_ATTEMPT) {
+    if (countUserTurns(answers) < MIN_ANSWERS_FOR_ATTEMPT) {
+      clearDraft(interviewId);
       setNotCounted(true);
       toast.info(`This attempt wasn't counted - interviews need at least ${MIN_ANSWERS_FOR_ATTEMPT} answers to be scored. Start again whenever you're ready.`);
       return;
@@ -51,14 +62,23 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
     setSaveFailed(false);
 
     if (!transcriptIdRef.current) {
-      const saved = await saveTranscript({ interviewId, transcript: messages });
+      const saved = await saveTranscript({ interviewId, transcript: answers, ticket: ticket ?? '', usage });
       if (!saved.success || !saved.transcriptId) {
-        toast.error('Could not save your answers - check your connection and retry. Do not close this tab.');
         setIsSavingReport(false);
+        if ('invalidSession' in saved && saved.invalidSession) {
+          // Expired, or this attempt was already saved from another tab.
+          clearDraft(interviewId);
+          setDraft(null);
+          toast.error('This session can no longer be saved. Please start a new attempt.');
+          return;
+        }
+        toast.error('Could not save your answers - check your connection and retry. Do not close this tab.');
         setSaveFailed(true);
         return;
       }
       transcriptIdRef.current = saved.transcriptId;
+      clearDraft(interviewId);
+      setDraft(null);
     }
 
     // replace, not push: the finished session shouldn't be a Back target -
@@ -70,7 +90,24 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
       toast.info('Your answers are saved. The AI service is busy right now - generate your report from the report page in a minute.');
       router.replace(`/interviews/${interviewId}/report`);
     }
-  }, [messages, interviewId, router]);
+  }, [interviewId, router]);
+
+  const finishInterview = useCallback(
+    () => saveAndScore(messages, getTicket(), getUsage()),
+    [saveAndScore, messages, getTicket, getUsage]
+  );
+  // Retrying a failed save must resend the same answers - the recovered
+  // ones if that's what was being saved.
+  const [saving, setSaving] = useState<InterviewDraft | null>(null);
+  const scoreDraft = useCallback(() => {
+    if (!draft) return;
+    setSaving(draft);
+    void saveAndScore(draft.messages, draft.ticket, draft.usage);
+  }, [draft, saveAndScore]);
+  const retrySave = useCallback(
+    () => (saving ? saveAndScore(saving.messages, saving.ticket, saving.usage) : finishInterview()),
+    [saving, saveAndScore, finishInterview]
+  );
 
   useEffect(() => {
     if (status !== SessionStatus.ENDED || hasGeneratedReport.current) return;
@@ -152,8 +189,32 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
 
       <Transcript messages={messages} caption={caption} />
 
+      {draft && status === SessionStatus.IDLE && !isSavingReport && !saveFailed && (
+        <div className="panel w-full max-w-xl space-y-3 p-5 text-center">
+          <p className="font-semibold text-foreground">You have an unsaved interview</p>
+          <p className="text-sm text-muted-foreground">
+            {`Your session from ${dayjs(draft.savedAt).format('h:mm A')} ended before it was saved, with ${countUserTurns(draft.messages)} answers. `}
+            Score it now, or start a fresh attempt instead (that discards it).
+          </p>
+          <div className="flex justify-center gap-3 max-sm:flex-col">
+            <button className="btn-spark" onClick={scoreDraft}>
+              Score my answers
+            </button>
+            <button
+              className="btn-outline"
+              onClick={() => {
+                clearDraft(interviewId);
+                setDraft(null);
+              }}
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
       {saveFailed ? (
-        <button className="btn-spark min-w-44" onClick={() => void finishInterview()} disabled={isSavingReport}>
+        <button className="btn-spark min-w-44" onClick={() => void retrySave()} disabled={isSavingReport}>
           <RotateCcw className="size-4" /> Retry saving your answers
         </button>
       ) : !isLive ? (
@@ -199,6 +260,8 @@ const VoiceSession = ({ userName, interviewId, attempt, maxAttempts }: VoiceSess
           setNotCounted(false);
           hasGeneratedReport.current = false;
           transcriptIdRef.current = null;
+          setSaving(null);
+          setDraft(null);
           void start();
         }}
       />

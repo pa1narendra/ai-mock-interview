@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getPermissions } from "@/lib/permissions";
-import { countUserTurns, MIN_ANSWERS_FOR_ATTEMPT, transcriptSchema } from "@/lib/schemas";
+import { countUserTurns, liveUsageSchema, MIN_ANSWERS_FOR_ATTEMPT, transcriptSchema } from "@/lib/schemas";
+import { verifySessionTicket } from "@/lib/session-ticket";
 
 // Attempts are counted from transcripts (an interview you completed consumes
 // an attempt even if report generation failed), with legacy reports counted
@@ -31,7 +32,13 @@ export async function getAttemptsUsed(interviewId: string): Promise<number> {
     return countAttempts(interviewId, user.id);
 }
 
-export async function saveTranscript(params: { interviewId: string; transcript: SavedMessage[] }) {
+export async function saveTranscript(params: {
+    interviewId: string;
+    transcript: SavedMessage[];
+    // Issued by /api/voice/token for this attempt - proves the interview happened.
+    ticket: string;
+    usage?: unknown;
+}) {
     const { interviewId } = params;
     try {
         const user = await getCurrentUser();
@@ -53,6 +60,11 @@ export async function saveTranscript(params: { interviewId: string; transcript: 
 
         const attemptsUsed = await countAttempts(interviewId, user.id);
         if (attemptsUsed >= getPermissions(user).maxAttempts) return { success: false as const };
+        // One ticket per attempt: it names the attempt it was minted for, so
+        // it can't be replayed once that attempt is saved.
+        if (!verifySessionTicket(params.ticket, { userId: user.id, interviewId, attempt: attemptsUsed + 1 })) {
+            return { success: false as const, invalidSession: true as const };
+        }
 
         const [row] = await db.insert(transcripts).values({
             interviewId,
@@ -60,6 +72,13 @@ export async function saveTranscript(params: { interviewId: string; transcript: 
             attempt: attemptsUsed + 1,
             turns: transcript,
         }).returning({ id: transcripts.id, attempt: transcripts.attempt });
+
+        // Real Live API usage for this interview, for cost tracking. It shows
+        // up in the Vercel function logs.
+        const usage = liveUsageSchema.safeParse(params.usage);
+        if (usage.success) {
+            console.info("live_usage", JSON.stringify({ interviewId, attempt: row.attempt, answers: countUserTurns(transcript), ...usage.data }));
+        }
 
         // Back-navigation should reflect the consumed attempt without a refresh.
         revalidatePath(`/interviews/${interviewId}`);

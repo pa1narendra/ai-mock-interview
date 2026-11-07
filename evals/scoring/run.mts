@@ -12,10 +12,14 @@ import path from "node:path";
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 // EVAL_SCORER=<path to another scorer module> runs that one instead, to compare.
-const { buildScoringPrompt, scoringSchema, SCORING_MODEL_SETTINGS, SCORING_SYSTEM, categoryScoresFromAnswers } = await import(
+const { buildScoringPrompt, scoringSchema, SCORING_MODEL_SETTINGS, SCORING_SYSTEM, categoryScoresFromAnswers, applyScoringRules } = await import(
   process.env.EVAL_SCORER ?? "../../lib/ai/scoring"
 );
 import { averageScore, clampScore } from "@/lib/utils";
+import { PRIMARY_MODEL } from "@/lib/ai/models";
+
+// EVAL_MODEL=<gemini model> scores with another model, to compare.
+const MODEL = process.env.EVAL_MODEL ?? PRIMARY_MODEL;
 
 const root = path.resolve(import.meta.dirname, "../..");
 try {
@@ -46,14 +50,16 @@ const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
 const mean = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
 
 async function scoreOnce(fx: Fixture) {
-  const { object } = (await generateObject({
-    model: google("gemini-2.5-flash"),
+  const { object: raw } = (await generateObject({
+    model: google(MODEL),
     schema: scoringSchema(false),
     system: SCORING_SYSTEM,
     prompt: buildScoringPrompt({ turns: fx.turns, questions: fx.questions, role: fx.role, level: fx.level }),
     maxRetries: 4,
     ...SCORING_MODEL_SETTINGS,
   })) as { object: { categoryScores: { name: string; score: number; comment: string }[]; questionFeedback: { score: number }[] } };
+  // The same code-enforced rules as the app (older scorers don't have them).
+  const object: typeof raw = applyScoringRules ? applyScoringRules(raw) : raw;
   const categories: { name: string; score: number }[] = categoryScoresFromAnswers
     ? categoryScoresFromAnswers(object)
     : object.categoryScores.map((c: { name: string; score: number; comment: string }) => ({ ...c, score: clampScore(c.score) }));

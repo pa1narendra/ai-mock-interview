@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildScoringPrompt, categoryScoresFromAnswers, SCORE_CATEGORIES, SCORING_MODEL_SETTINGS, scoringSchema } from "@/lib/ai/scoring";
+import { applyScoringRules, buildScoringPrompt, categoryScoresFromAnswers, MISTAKE_CAP, SCORE_CATEGORIES, SCORING_MODEL_SETTINGS, scoringSchema } from "@/lib/ai/scoring";
 
 const turns = [
   { role: "assistant", content: "What is a closure?" },
@@ -10,7 +10,7 @@ describe("scoringSchema", () => {
   const category = { name: "Communication Skills", score: 70, comment: "ok" };
   const valid = {
     questionFeedback: [
-      { question: "What is a closure?", evidence: "A function that remembers the variables", answerSummary: "Correct, brief.", score: 72, ratings: { communication: 70, technical: 72, problemSolving: null, fit: null, confidence: 75 }, feedback: "Add an example", idealAnswer: "I used one for..." },
+      { question: "What is a closure?", evidence: "A function that remembers the variables", answerSummary: "Correct, brief.", mistakes: [], score: 72, ratings: { communication: 70, technical: 72, problemSolving: null, fit: null, confidence: 75 }, feedback: "Add an example", idealAnswer: "I used one for..." },
     ],
     categoryScores: Array.from({ length: 5 }, () => category),
     strengths: ["clear"],
@@ -82,7 +82,7 @@ describe("buildScoringPrompt", () => {
 
 describe("categoryScoresFromAnswers", () => {
   const answer = (score: number, technical: number | null) => ({
-    question: "q", evidence: "e", answerSummary: "s", feedback: "f", idealAnswer: "i", score,
+    question: "q", evidence: "e", answerSummary: "s", mistakes: [] as string[], feedback: "f", idealAnswer: "i", score,
     ratings: { communication: score, technical, problemSolving: null, fit: null, confidence: score },
   });
   const modelCategories = SCORE_CATEGORIES.map((name) => ({ name, score: 90, comment: `about ${name}` }));
@@ -109,5 +109,44 @@ describe("categoryScoresFromAnswers", () => {
   it("uses the model's categories when nothing was rated at all", () => {
     const result = categoryScoresFromAnswers({ questionFeedback: [], categoryScores: modelCategories });
     expect(result).toHaveLength(5);
+  });
+});
+
+describe("applyScoringRules", () => {
+  const answer = (mistakes: string[], technical: number | null) => ({
+    question: "q", evidence: "e", answerSummary: "s", mistakes, score: 85,
+    ratings: { communication: 80, technical, problemSolving: null, fit: null, confidence: 80 },
+    feedback: "f", idealAnswer: "i",
+  });
+  const base = { categoryScores: [] as { name: string; score: number; comment: string }[] };
+
+  it("caps an answer with a listed mistake, on its score and technical rating", () => {
+    const [q] = applyScoringRules({ ...base, questionFeedback: [answer(["const objects can still be mutated"], 85)] }).questionFeedback;
+    expect(q.score).toBe(MISTAKE_CAP);
+    expect(q.ratings.technical).toBe(MISTAKE_CAP);
+    expect(q.ratings.communication).toBe(80);
+  });
+
+  it("leaves correct answers and non-technical ratings alone", () => {
+    const [clean, behavioural] = applyScoringRules({ ...base, questionFeedback: [answer([], 85), answer(["wrong"], null)] }).questionFeedback;
+    expect(clean.score).toBe(85);
+    expect(clean.ratings.technical).toBe(85);
+    expect(behavioural.score).toBe(MISTAKE_CAP);
+    expect(behavioural.ratings.technical).toBeNull();
+  });
+
+  it("feeds the capped ratings into the category scores", () => {
+    const result = applyScoringRules({ categoryScores: SCORE_CATEGORIES.map((name) => ({ name, score: 90, comment: "" })), questionFeedback: [answer(["wrong"], 90)] });
+    expect(categoryScoresFromAnswers(result).find((c) => c.name === "Technical Knowledge")?.score).toBe(MISTAKE_CAP);
+  });
+});
+
+describe("level-aware scoring prompt", () => {
+  it("sets the bar by the chosen level instead of always grading as a fresher", () => {
+    const prompt = (level: string) => buildScoringPrompt({ turns, questions: ["What is a closure?"], role: "frontend developer", level });
+    expect(prompt("junior")).toMatch(/0-2 years/);
+    expect(prompt("mid")).toMatch(/2-5 years/);
+    expect(prompt("senior")).toMatch(/5\+ years/);
+    expect(prompt("senior")).not.toMatch(/first job/);
   });
 });

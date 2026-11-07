@@ -5,8 +5,7 @@ import { google } from "@ai-sdk/google";
 import { groq } from "@ai-sdk/groq";
 import type { z } from "zod";
 
-const PRIMARY_MODEL = "gemini-2.5-flash";
-const FALLBACK_MODEL = "gemini-2.5-flash-lite";
+import { FALLBACK_MODEL, PRIMARY_MODEL } from "@/lib/ai/models";
 // Open-model safety net (Groq free tier, Llama). Only used when a
 // GROQ_API_KEY is configured, and never for requests carrying file parts
 // (PDF understanding is Gemini-only in our pipeline).
@@ -39,9 +38,10 @@ function hasFileParts(messages?: ModelMessage[]): boolean {
 // of fallbacks that rarely share the same congestion.
 export async function resilientGenerateObject<SCHEMA extends z.ZodType>(
   { thinking, ...args }: GenerateArgs<SCHEMA>
-): Promise<{ object: z.infer<SCHEMA> }> {
+): Promise<{ object: z.infer<SCHEMA>; model: string }> {
+  // Gemini 3 models take a thinking level rather than a token budget.
   const googleOptions =
-    thinking === false ? { providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } } } : {};
+    thinking === false ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "minimal" } } } } : {};
   const attempts: Array<{ label: string; run: () => Promise<{ object: unknown }> }> = [
     {
       label: PRIMARY_MODEL,
@@ -81,7 +81,9 @@ export async function resilientGenerateObject<SCHEMA extends z.ZodType>(
   for (const [index, attempt] of attempts.entries()) {
     try {
       const { object } = await attempt.run();
-      return { object: object as z.infer<SCHEMA> };
+      // Which model answered: a report scored by a fallback isn't directly
+      // comparable with one scored by the primary model.
+      return { object: object as z.infer<SCHEMA>, model: attempt.label };
     } catch (error) {
       lastError = error;
       const next = attempts[index + 1];

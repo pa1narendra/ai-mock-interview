@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { MicPermissionError, PcmRecorder } from "@/lib/audio/recorder";
 import { PcmPlayer } from "@/lib/audio/player";
 import { LiveCaption } from "@/lib/audio/live-caption";
+import { saveDraft, type LiveUsage } from "@/lib/interview-draft";
 
 export enum SessionStatus {
   IDLE = "IDLE",
@@ -25,6 +26,22 @@ interface TokenResponse {
   token?: string;
   model?: string;
   config?: LiveConnectConfig;
+  ticket?: string;
+}
+
+const emptyUsage = (): LiveUsage => ({
+  turns: 0,
+  promptTokens: 0,
+  responseTokens: 0,
+  promptByModality: {},
+  responseByModality: {},
+});
+
+function addByModality(into: Record<string, number>, details?: Array<{ modality?: string; tokenCount?: number }>) {
+  for (const d of details ?? []) {
+    const name = d.modality ?? "UNKNOWN";
+    into[name] = (into[name] ?? 0) + (d.tokenCount ?? 0);
+  }
 }
 
 // Watchdog: if the interviewer goes silent (VAD missed the end of the user's
@@ -63,6 +80,10 @@ export function useVoiceSession(interviewId: string) {
   const nudgeCountRef = useRef(0);
   const isSpeakingRef = useRef(false);
   const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Proof this session was really started - needed to save its transcript.
+  const ticketRef = useRef<string | null>(null);
+  // Token usage the Live API reports per turn, summed - to measure real cost.
+  const usageRef = useRef<LiveUsage>(emptyUsage());
 
   const setStatus = useCallback((next: SessionStatus) => {
     statusRef.current = next;
@@ -120,7 +141,7 @@ export function useVoiceSession(interviewId: string) {
       body: JSON.stringify({ interviewId, resumeHandle }),
     });
     const data = (await res.json().catch(() => ({}))) as TokenResponse;
-    if (!res.ok || !data.success || !data.token || !data.model || !data.config) {
+    if (!res.ok || !data.success || !data.token || !data.model || !data.config || !data.ticket) {
       throw new Error(data.message ?? "Could not start the interview session");
     }
     return data;
@@ -133,6 +154,15 @@ export function useVoiceSession(interviewId: string) {
       // housekeeping (sessionResumptionUpdate every few seconds while idle),
       // which would otherwise keep the silence watchdog from ever firing.
       if (content || message.toolCall) lastActivityRef.current = Date.now();
+
+      if (message.usageMetadata) {
+        const usage = usageRef.current;
+        usage.turns += 1;
+        usage.promptTokens += message.usageMetadata.promptTokenCount ?? 0;
+        usage.responseTokens += message.usageMetadata.responseTokenCount ?? 0;
+        addByModality(usage.promptByModality, message.usageMetadata.promptTokensDetails);
+        addByModality(usage.responseByModality, message.usageMetadata.responseTokensDetails);
+      }
 
       const audio = content?.modelTurn?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data;
       if (audio) playerRef.current?.enqueue(audio);
@@ -234,9 +264,10 @@ export function useVoiceSession(interviewId: string) {
 
   const connect = useCallback(
     async (resumeHandle?: string) => {
-      // The resume handle is baked into the token server-side; the client
-      // must echo the token's config verbatim or it is ignored/rejected.
-      const { token, model, config } = await fetchToken(resumeHandle);
+      // The resume handle and the full session config (system prompt
+      // included) are locked into the token server-side.
+      const { token, model, config, ticket } = await fetchToken(resumeHandle);
+      ticketRef.current = ticket!;
 
       const ai = new GoogleGenAI({
         apiKey: token!,
@@ -278,6 +309,8 @@ export function useVoiceSession(interviewId: string) {
     userEndedRef.current = false;
     reconnectAttemptsRef.current = 0;
     resumeHandleRef.current = undefined;
+    ticketRef.current = null;
+    usageRef.current = emptyUsage();
     userBufferRef.current = "";
     modelBufferRef.current = "";
 
@@ -372,6 +405,17 @@ export function useVoiceSession(interviewId: string) {
     }
   }, [connect, teardown, setStatus, finish]);
 
+  // Keep a local copy of the answers as they come in, so a crash or refresh
+  // mid-interview can be recovered and scored (lib/interview-draft.ts).
+  useEffect(() => {
+    if (status !== SessionStatus.LIVE && status !== SessionStatus.ENDED) return;
+    if (!ticketRef.current || messages.length === 0) return;
+    saveDraft(interviewId, { messages, ticket: ticketRef.current, usage: usageRef.current });
+  }, [messages, status, interviewId]);
+
+  const getTicket = useCallback(() => ticketRef.current, []);
+  const getUsage = useCallback(() => usageRef.current, []);
+
   // Clean up if the component unmounts mid-session.
   useEffect(() => {
     return () => {
@@ -380,5 +424,5 @@ export function useVoiceSession(interviewId: string) {
     };
   }, [teardown]);
 
-  return { status, isSpeaking, messages, caption, start, end };
+  return { status, isSpeaking, messages, caption, start, end, getTicket, getUsage };
 }

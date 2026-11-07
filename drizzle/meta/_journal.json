@@ -57,6 +57,13 @@
       "when": 1793302992684,
       "tag": "0007_friendly_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793904147633,
+      "tag": "0008_report_scored_by",
+      "breakpoints": true
     }
   ]
 }

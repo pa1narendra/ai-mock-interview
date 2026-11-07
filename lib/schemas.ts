@@ -40,15 +40,31 @@ export const interviewRequestSchema = z
 export type InterviewRequest = z.infer<typeof interviewRequestSchema>;
 
 // The transcript arrives from the browser, so bound its shape and size.
+// Over-long turns and transcripts are trimmed, not rejected: rejecting would
+// fail every retry the same way and lose the whole interview over one
+// marathon answer.
+export const MAX_TURN_CHARS = 10_000;
+export const MAX_TURNS = 500;
 export const transcriptSchema = z
   .array(
     z.object({
       role: z.enum(["user", "assistant"]),
-      content: z.string().max(10_000),
+      content: z.string().transform((text) => text.slice(0, MAX_TURN_CHARS)),
     })
   )
   .min(1)
-  .max(500);
+  .transform((turns) => turns.slice(0, MAX_TURNS));
+
+// Live API token usage summed by the browser (lib/interview-draft.ts). It is
+// client-reported, so it is only ever logged for cost tracking.
+const tokenCount = z.number().int().min(0).max(1e9);
+export const liveUsageSchema = z.object({
+  turns: tokenCount,
+  promptTokens: tokenCount,
+  responseTokens: tokenCount,
+  promptByModality: z.record(z.string().max(20), tokenCount),
+  responseByModality: z.record(z.string().max(20), tokenCount),
+});
 
 // An interview needs real answers before it's scored: below this it doesn't
 // use an attempt (an accidental Start/End shouldn't cost one or produce a

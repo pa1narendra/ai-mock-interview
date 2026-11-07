@@ -5,6 +5,7 @@ import { getAttemptsUsed } from "@/lib/actions/transcripts";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getPermissions } from "@/lib/permissions";
 import { buildInterviewerPrompt, LIVE_MODEL, LIVE_VOICE } from "@/lib/ai/prompts";
+import { issueSessionTicket } from "@/lib/session-ticket";
 import { z } from "zod";
 
 const requestSchema = z.object({
@@ -12,9 +13,17 @@ const requestSchema = z.object({
   resumeHandle: z.string().max(512).optional(),
 });
 
-// Per-user daily voice-session cap (Live API is the main cost driver).
-const DAILY_VOICE_SESSIONS = 10;
+// Reconnects within an interview have their own, looser cap. New sessions
+// are capped per tier (Permissions.dailyVoiceSessions).
 const DAILY_VOICE_RESUMES = 40;
+
+// Each turn the Live API re-reads the whole conversation so far, so cost
+// grows with length. Past TRIGGER tokens the oldest turns are dropped down
+// to TARGET (~25 audio tokens per second of speech, so the interviewer keeps
+// roughly the last 4-6 minutes). The system prompt - persona and the full
+// question list - is always kept, per the Live API reference.
+const COMPRESSION_TRIGGER_TOKENS = 16_000;
+const COMPRESSION_TARGET_TOKENS = 8_000;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -72,10 +81,10 @@ export async function POST(request: Request) {
   } else {
     // Daily cap on voice sessions - the Live API is the expensive path, so
     // bound per-user cost even across many interviews.
-    const voiceLimit = await checkRateLimit(user.id, "voice_day", DAILY_VOICE_SESSIONS, "1 day");
+    const voiceLimit = await checkRateLimit(user.id, "voice_day", perms.dailyVoiceSessions, "1 day");
     if (!voiceLimit.ok) {
       return Response.json(
-        { success: false, message: `You've reached today's limit of ${DAILY_VOICE_SESSIONS} interviews. Come back tomorrow.` },
+        { success: false, message: `You've reached today's limit of ${perms.dailyVoiceSessions} interviews. Come back tomorrow.` },
         { status: 429 }
       );
     }
@@ -103,7 +112,10 @@ export async function POST(request: Request) {
         endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
       },
     },
-    contextWindowCompression: { slidingWindow: {} },
+    contextWindowCompression: {
+      triggerTokens: String(COMPRESSION_TRIGGER_TOKENS),
+      slidingWindow: { targetTokens: String(COMPRESSION_TARGET_TOKENS) },
+    },
     sessionResumption: parsed.data.resumeHandle
       ? { handle: parsed.data.resumeHandle }
       : {},
@@ -138,12 +150,17 @@ export async function POST(request: Request) {
       },
     });
 
-    // The client echoes this exact config into ai.live.connect().
+    // The token's constraints lock the session config server-side, so the
+    // browser gets it without the system prompt: the planned questions stay
+    // out of devtools (free users can't preview them).
+    const { systemInstruction: _systemInstruction, ...clientConfig } = config;
     return Response.json({
       success: true,
       token: token.name,
       model: LIVE_MODEL,
-      config,
+      config: clientConfig,
+      // Required to save this attempt's transcript (lib/session-ticket.ts).
+      ticket: issueSessionTicket(user.id, interview.id, attemptsUsed + 1),
     });
   } catch (error) {
     console.error("failed to mint voice session token", error);

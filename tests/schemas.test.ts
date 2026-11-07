@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { interviewRequestSchema, transcriptSchema, countUserTurns, MIN_ANSWERS_FOR_ATTEMPT } from "@/lib/schemas";
+import { interviewRequestSchema, transcriptSchema, countUserTurns, MIN_ANSWERS_FOR_ATTEMPT, MAX_TURN_CHARS, MAX_TURNS } from "@/lib/schemas";
 
 const base = {
   role: "Frontend Developer",
@@ -57,11 +57,15 @@ describe("transcriptSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects empty, oversized, or malformed transcripts", () => {
+  it("rejects empty or malformed transcripts", () => {
     expect(transcriptSchema.safeParse([]).success).toBe(false);
     expect(transcriptSchema.safeParse([{ role: "system", content: "x" }]).success).toBe(false);
-    expect(transcriptSchema.safeParse([{ role: "user", content: "x".repeat(10_001) }]).success).toBe(false);
-    expect(transcriptSchema.safeParse(Array(501).fill({ role: "user", content: "x" })).success).toBe(false);
+  });
+
+  it("trims an over-long answer or transcript instead of losing the whole interview", () => {
+    const long = transcriptSchema.parse([{ role: "user", content: "x".repeat(MAX_TURN_CHARS + 500) }]);
+    expect(long[0].content).toHaveLength(MAX_TURN_CHARS);
+    expect(transcriptSchema.parse(Array(MAX_TURNS + 1).fill({ role: "user", content: "x" }))).toHaveLength(MAX_TURNS);
   });
 });
 

@@ -14,6 +14,7 @@ export interface Permissions {
   maxAttempts: number; // attempts per interview
   maxInterviews: number; // interviews a user may own
   unlimitedUsage: boolean; // skip the hourly/daily rate limits (owner + demo)
+  dailyVoiceSessions: number; // new voice interviews per day - the Live API is the main cost
 }
 
 const NORMAL: Permissions = {
@@ -25,6 +26,7 @@ const NORMAL: Permissions = {
   maxAttempts: 3,
   maxInterviews: 5,
   unlimitedUsage: false,
+  dailyVoiceSessions: 3,
 };
 
 const PRO: Permissions = {
@@ -36,6 +38,7 @@ const PRO: Permissions = {
   maxAttempts: 5,
   maxInterviews: 20,
   unlimitedUsage: false,
+  dailyVoiceSessions: 10,
 };
 
 const OWNER: Permissions = {
@@ -47,6 +50,7 @@ const OWNER: Permissions = {
   maxAttempts: 99,
   maxInterviews: 999,
   unlimitedUsage: true,
+  dailyVoiceSessions: 999,
 };
 
 const DEMO: Permissions = { ...OWNER, canEditQuestions: false };

@@ -42,8 +42,6 @@ interface QuestionFeedback {
   question: string;
   // Verbatim quote of the candidate (reports scored from v0.7.0 on).
   evidence?: string;
-  // Verbatim quote of the candidate (reports scored from v0.7.0 on).
-  evidence?: string;
   answerSummary: string;
   score: number;
   feedback: string;

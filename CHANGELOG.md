@@ -4,6 +4,28 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.7.2] - 2026-11-05
+
+**Before deploying, run this once on the database** (adds one nullable column, changes nothing else). Deploying first breaks every page that reads reports:
+`ALTER TABLE "reports" ADD COLUMN "scored_by" text;` (also in `drizzle/0008_report_scored_by.sql`)
+
+### Changed
+- Reports are scored against the level you picked. Junior is judged as a strong fresher, mid-level against 2-5 years of real ownership, and senior against system-level depth. Before, every level was graded as a fresher, so mid and senior scores were too generous.
+- The scorer now lists the factual mistakes and half-truths in each answer before scoring it, and any listed mistake caps that answer at 50. The cap is applied in code, not left to the model.
+- Interviews and reports now run on gemini-3.5-flash-lite (fallback gemini-3.1-flash-lite). gemini-2.5-flash is deprecated, and Google routes it to 3.5-flash-lite from December 1 anyway, at the same price.
+- Free accounts get 3 voice interviews a day (was 10). Pro accounts keep 10.
+- Each turn of a voice interview re-reads the conversation so far, so cost grew with length. Past ~16k tokens the oldest turns are now dropped down to ~8k, about the last 4-6 minutes. The interviewer always keeps its instructions and the full question list.
+
+### Fixed
+- A transcript is only accepted from a voice session that was really started for that interview and attempt. Before, a made-up transcript sent from the browser got a scored report, and with a verified email it also credited a referral, which unlocks Pro.
+- An interview cut off by a crash, refresh or closed tab is no longer lost. Answers are kept in the browser as they come in, and the interview page offers to score them on the next visit (within 6 hours).
+- One very long answer (over 10,000 characters) no longer makes the whole save fail on every retry. It is trimmed instead.
+- The planned questions are no longer sent to the browser with the voice session, where free users could read them in devtools. The session config is locked into the token on the server.
+- Each report records which model scored it, so a report scored by the fallback model can be told apart.
+
+### Added
+- Real Live API token usage (by text and audio) is logged with each saved interview as `live_usage` in the Vercel function logs, to measure the actual cost per interview.
+
 ## [0.7.1] - 2026-11-04
 
 ### Changed

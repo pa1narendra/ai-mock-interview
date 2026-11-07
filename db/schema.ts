@@ -118,6 +118,10 @@ export const reports = pgTable("reports", {
   attempt: integer("attempt").notNull().default(1),
   // Random token for the public read-only share link; null = not shared.
   shareId: uuid("share_id").unique(),
+  // The model that scored this report (a fallback model scores differently,
+  // so attempts are only directly comparable when this matches).
+  // Null on reports from before 0.7.2.
+  scoredBy: text("scored_by"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [
   index("reports_interview_user_idx").on(table.interviewId, table.userId),

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { resilientGenerateObject } from "@/lib/ai/generate";
-import { buildScoringPrompt, SCORING_MODEL_SETTINGS, SCORING_SYSTEM, scoringSchema, categoryScoresFromAnswers, type ScoringResult } from "@/lib/ai/scoring";
+import { applyScoringRules, buildScoringPrompt, SCORING_MODEL_SETTINGS, SCORING_SYSTEM, scoringSchema, categoryScoresFromAnswers, type ScoringResult } from "@/lib/ai/scoring";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getPermissions } from "@/lib/permissions";
 import { creditReferrerOnce } from "@/lib/referral-credit";
@@ -61,7 +61,7 @@ export async function createReport(transcriptId: string) {
         // someone else takes a community interview, score them generically.
         const withJd = Boolean(interview.jdText) && interview.userId === user.id;
 
-        const { object } = await resilientGenerateObject({
+        const { object, model } = await resilientGenerateObject({
             schema: scoringSchema(withJd),
             system: SCORING_SYSTEM,
             prompt: buildScoringPrompt({
@@ -80,7 +80,7 @@ export async function createReport(transcriptId: string) {
             ...SCORING_MODEL_SETTINGS,
         });
 
-        const result = object as ScoringResult;
+        const result = applyScoringRules(object as ScoringResult);
         const categoryScores = categoryScoresFromAnswers(result);
 
         // onConflictDoNothing: a concurrent call (double-click) for the same
@@ -103,8 +103,9 @@ export async function createReport(transcriptId: string) {
                 : null,
             questionFeedback: (result.questionFeedback ?? [])
                 .slice(0, MAX_QUESTIONS)
-                .map(({ ratings: _ratings, ...q }) => ({ ...q, score: clampScore(q.score) })),
+                .map(({ ratings: _ratings, mistakes: _mistakes, ...q }) => ({ ...q, score: clampScore(q.score) })),
             attempt: transcript.attempt,
+            scoredBy: model,
         }).onConflictDoNothing().returning({ id: reports.id });
 
         const report = inserted ?? (await db.select({ id: reports.id })
