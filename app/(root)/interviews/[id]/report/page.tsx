@@ -6,9 +6,10 @@ import { RotateCcw, LayoutDashboard, MessagesSquare } from 'lucide-react';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { getInterview } from '@/lib/actions/interviews';
 import { getReportsForInterview } from '@/lib/actions/reports';
-import { getPendingTranscripts } from '@/lib/actions/transcripts';
+import { getAttemptCode, getPendingTranscripts } from '@/lib/actions/transcripts';
 import { getPermissions } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
+import { LANGUAGE_OPTIONS } from '@/lib/schemas';
 import GenerateReportButton from '@/components/generate-report-button';
 import PracticeGapsButton from '@/components/practice-gaps-button';
 import ShareReportButton from '@/components/share-report-button';
@@ -87,6 +88,9 @@ const Page = async ({ params, searchParams }: RouteParams) => {
     allReports[allReports.length - 1];
 
   const pdfName = `Mockstar - ${interview.role} interview - attempt ${report.attempt}`;
+  // DSA rounds: the code the candidate submitted with this attempt.
+  const submittedCode = interview.format === 'dsa' ? await getAttemptCode(id, report.attempt) : null;
+  const languageLabel = LANGUAGE_OPTIONS.find((o) => o.value === interview.language)?.label ?? interview.language;
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-8 fade-up print:max-w-none">
@@ -119,6 +123,14 @@ const Page = async ({ params, searchParams }: RouteParams) => {
         allReports={allReports}
         maxAttempts={maxAttempts}
       />
+
+      {submittedCode && (
+        <section className="break-inside-avoid space-y-3">
+          <h2 className="text-xl">Your code{languageLabel ? ` · ${languageLabel}` : ''}</h2>
+          <p className="text-sm text-muted-foreground">What was in the editor when the interview ended. It was reviewed, not run.</p>
+          <pre className="max-h-[32rem] overflow-auto rounded-xl border border-border bg-surface-raised p-4 text-xs leading-relaxed text-foreground print:max-h-none print:overflow-visible print:whitespace-pre-wrap"><code>{submittedCode}</code></pre>
+        </section>
+      )}
 
       <div className="no-print flex flex-wrap items-center gap-3 border-t border-border pt-8">
         <Link href={`/interviews/${id}/report/transcript?attempt=${report.attempt}`} className="btn-outline">

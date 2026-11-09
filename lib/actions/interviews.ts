@@ -10,7 +10,8 @@ import { interviews } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getReportForInterview } from "@/lib/actions/reports";
 import { resilientGenerateObject } from "@/lib/ai/generate";
-import { buildFocusedQuestionsPrompt } from "@/lib/ai/prompts";
+import { buildFocusedQuestionsPrompt, buildRoundPrompt } from "@/lib/ai/prompts";
+import { ROUND_LIMITS } from "@/lib/schemas";
 import { checkGenerationQuota } from "@/lib/generation-quota";
 
 const FOCUSED_AMOUNT = 5;
@@ -39,6 +40,9 @@ export async function getCommunityInterviews(limit = 20): Promise<Interview[] | 
         role: interviews.role,
         level: interviews.level,
         type: interviews.type,
+        format: interviews.format,
+        difficulty: interviews.difficulty,
+        language: interviews.language,
         techstack: interviews.techstack,
         userId: interviews.userId,
         createdAt: interviews.createdAt,
@@ -116,6 +120,46 @@ export async function createFocusedInterview(
     // Same limits as the main generate route - this creates an interview too.
     const quota = await checkGenerationQuota(user);
     if (!quota.ok) return { success: false, message: quota.message };
+
+    // A DSA or system design round is practised as the same kind of round,
+    // at the same difficulty and in the same language.
+    const format = source.format ?? "standard";
+    if (format !== "standard") {
+        const { min, max } = ROUND_LIMITS[format];
+        const amount = Math.min(max, Math.max(min, source.questions.length));
+        try {
+            const { object } = await resilientGenerateObject({
+                schema: z.object({ questions: z.array(z.string().min(1)).min(1) }),
+                thinking: false,
+                prompt: buildRoundPrompt({
+                    format,
+                    role: source.role,
+                    level: source.level,
+                    amount,
+                    difficulty: source.difficulty,
+                    language: source.language,
+                    focus: weakAreas,
+                }),
+            });
+            const [interview] = await db.insert(interviews).values({
+                role: source.role,
+                type: source.type,
+                level: source.level,
+                format,
+                difficulty: source.difficulty ?? null,
+                language: source.language ?? null,
+                techstack: source.techstack,
+                questions: (object as { questions: string[] }).questions.slice(0, amount),
+                userId: user.id,
+                voice: source.voice ?? null,
+            }).returning({ id: interviews.id });
+            revalidatePath("/dashboard");
+            return { success: true, interviewId: interview.id };
+        } catch (e) {
+            console.error("focused round generation failed", e);
+            return { success: false, message: "Failed to generate. Please try again." };
+        }
+    }
 
     try {
         const { object } = await resilientGenerateObject({

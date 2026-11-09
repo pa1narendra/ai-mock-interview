@@ -17,24 +17,79 @@ export const MIN_QUESTIONS = 15;
 export const MAX_QUESTIONS = 25;
 const questionCountMessage = `Enter a number between ${MIN_QUESTIONS} and ${MAX_QUESTIONS}`;
 
+// The kind of round. A standard interview is a conversation over many
+// questions; a DSA round is a few coding problems solved in an editor; a
+// system design round is one or two design prompts discussed in depth.
+export const ROUND_FORMATS = ["standard", "dsa", "system_design"] as const;
+export type RoundFormat = (typeof ROUND_FORMATS)[number];
+
+export const ROUND_OPTIONS = [
+  { value: "standard", label: "Standard interview" },
+  { value: "dsa", label: "DSA coding round" },
+  { value: "system_design", label: "System design round" },
+] as const;
+
+export const DIFFICULTIES = ["easy", "medium", "hard"] as const;
+export const DIFFICULTY_OPTIONS = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+] as const;
+
+export const CODE_LANGUAGES = ["python", "javascript", "java", "cpp"] as const;
+export const LANGUAGE_OPTIONS = [
+  { value: "python", label: "Python" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "java", label: "Java" },
+  { value: "cpp", label: "C++" },
+] as const;
+
+// How many items each round plans, and the default. A coding problem or a
+// design prompt fills 20-40 minutes on its own.
+export const ROUND_LIMITS: Record<RoundFormat, { min: number; max: number; default: number; noun: string }> = {
+  standard: { min: MIN_QUESTIONS, max: MAX_QUESTIONS, default: MIN_QUESTIONS, noun: "question" },
+  dsa: { min: 1, max: 3, default: 2, noun: "problem" },
+  system_design: { min: 1, max: 2, default: 1, noun: "design prompt" },
+};
+
+// Suggested time per item, shown as a per-problem timer. When it runs out the
+// interviewer is told to wrap the problem up.
+export const PROBLEM_MINUTES: Record<string, number> = { easy: 15, medium: 25, hard: 35, system_design: 35 };
+
+export function roundCountMessage(format: RoundFormat): string {
+  const { min, max, noun } = ROUND_LIMITS[format];
+  return `Enter a number of ${noun}s between ${min} and ${max}`;
+}
+
+// The longest code kept for a DSA attempt (about 500 lines).
+export const MAX_CODE_CHARS = 20_000;
+
 export const interviewRequestSchema = z
   .object({
     role: z.string().trim().min(2, "Role is required").max(100),
     level: z.enum(["junior", "mid", "senior"]),
     type: z.enum(["technical", "behavioural", "mixed"]),
+    format: z.enum(ROUND_FORMATS).optional().default("standard"),
+    difficulty: z.enum(DIFFICULTIES).optional(),
+    language: z.enum(CODE_LANGUAGES).optional(),
     techstack: z.string().trim().max(200).optional().default(""),
-    amount: z.coerce
-      .number({ message: questionCountMessage })
-      .int()
-      .min(MIN_QUESTIONS, questionCountMessage)
-      .max(MAX_QUESTIONS, questionCountMessage),
+    amount: z.coerce.number({ message: questionCountMessage }).int(),
     jd: z.string().trim().max(15_000).optional().default(""),
     useSavedResume: z.coerce.boolean().optional().default(false),
     voice: z.enum(VOICE_VALUES).optional(),
   })
-  .refine((value) => value.techstack.length > 0 || value.jd.length > 0, {
-    message: "Add a tech stack or paste a job description",
-    path: ["techstack"],
+  .superRefine((value, ctx) => {
+    const { min, max } = ROUND_LIMITS[value.format];
+    if (value.amount < min || value.amount > max) {
+      ctx.addIssue({ code: "custom", message: roundCountMessage(value.format), path: ["amount"] });
+    }
+    // Standard questions need something to be grounded in; rounds don't.
+    if (value.format === "standard" && value.techstack.length === 0 && value.jd.length === 0) {
+      ctx.addIssue({ code: "custom", message: "Add a tech stack or paste a job description", path: ["techstack"] });
+    }
+    if (value.format === "dsa" && (!value.difficulty || !value.language)) {
+      ctx.addIssue({ code: "custom", message: "Pick a difficulty and a language", path: ["difficulty"] });
+    }
   });
 
 export type InterviewRequest = z.infer<typeof interviewRequestSchema>;
@@ -81,12 +136,12 @@ export const interviewFormSchema = z.object({
   role: z.string().trim().min(2, "Role is required").max(100),
   level: z.enum(["junior", "mid", "senior"]),
   type: z.enum(["technical", "behavioural", "mixed"]),
+  format: z.enum(ROUND_FORMATS),
+  difficulty: z.enum(DIFFICULTIES),
+  language: z.enum(CODE_LANGUAGES),
   techstack: z.string().trim().max(200),
-  amount: z
-    .number({ message: questionCountMessage })
-    .int()
-    .min(MIN_QUESTIONS, questionCountMessage)
-    .max(MAX_QUESTIONS, questionCountMessage),
+  // Range depends on the round - checked on submit (ROUND_LIMITS).
+  amount: z.number({ message: questionCountMessage }).int(),
   jd: z.string().trim().max(15_000, "Job description is too long (15,000 characters max)"),
   voice: z.enum(VOICE_VALUES),
 });

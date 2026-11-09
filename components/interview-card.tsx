@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import Link from 'next/link';
 import { Calendar, Star, ArrowUpRight } from 'lucide-react';
-import { roleAccent, roleInitials, scoreTone } from '@/lib/utils';
+import { roleAccent, roleInitials, roundLabel, scoreTone } from '@/lib/utils';
 import TechBadges from './tech-badges';
 import DeleteInterviewButton from './delete-interview-button';
 
@@ -19,7 +19,7 @@ const InterviewCard = ({
   maxAttempts: number; // the viewer's tier limit (Normal 3 / Pro 5)
 }) => {
   const { id, role, type, techstack, createdAt } = interview;
-  const normalizedType = /mix/gi.test(type) ? 'Mixed' : type;
+  const normalizedType = roundLabel(interview.format, interview.difficulty) ?? (/mix/gi.test(type) ? 'Mixed' : type);
   const formattedDate = dayjs(report?.createdAt || createdAt).format('MMM D, YYYY');
   const accent = roleAccent(role);
   // Community interviews are personalized to the viewer (their resume) rather

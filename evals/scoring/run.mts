@@ -37,6 +37,10 @@ interface Fixture {
   level: string;
   questions: string[];
   turns: { role: string; content: string }[];
+  // DSA / system design fixtures (default "standard").
+  format?: "standard" | "dsa" | "system_design";
+  code?: string;
+  language?: string;
 }
 
 const runs = Number(process.argv[2] ?? 5);
@@ -52,16 +56,16 @@ const mean = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) / xs.len
 async function scoreOnce(fx: Fixture) {
   const { object: raw } = (await generateObject({
     model: google(MODEL),
-    schema: scoringSchema(false),
+    schema: scoringSchema(false, fx.format),
     system: SCORING_SYSTEM,
-    prompt: buildScoringPrompt({ turns: fx.turns, questions: fx.questions, role: fx.role, level: fx.level }),
+    prompt: buildScoringPrompt({ turns: fx.turns, questions: fx.questions, role: fx.role, level: fx.level, format: fx.format, code: fx.code, language: fx.language }),
     maxRetries: 4,
     ...SCORING_MODEL_SETTINGS,
   })) as { object: { categoryScores: { name: string; score: number; comment: string }[]; questionFeedback: { score: number }[] } };
   // The same code-enforced rules as the app (older scorers don't have them).
-  const object: typeof raw = applyScoringRules ? applyScoringRules(raw) : raw;
+  const object: typeof raw = applyScoringRules ? applyScoringRules(raw, fx.format) : raw;
   const categories: { name: string; score: number }[] = categoryScoresFromAnswers
-    ? categoryScoresFromAnswers(object)
+    ? categoryScoresFromAnswers(object, fx.format)
     : object.categoryScores.map((c: { name: string; score: number; comment: string }) => ({ ...c, score: clampScore(c.score) }));
   return {
     total: averageScore(categories),

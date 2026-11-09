@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getPermissions } from "@/lib/permissions";
-import { countUserTurns, liveUsageSchema, MIN_ANSWERS_FOR_ATTEMPT, transcriptSchema } from "@/lib/schemas";
+import { countUserTurns, liveUsageSchema, MAX_CODE_CHARS, MIN_ANSWERS_FOR_ATTEMPT, transcriptSchema } from "@/lib/schemas";
 import { verifySessionTicket } from "@/lib/session-ticket";
 
 // Attempts are counted from transcripts (an interview you completed consumes
@@ -40,6 +40,8 @@ export async function saveTranscript(params: {
     // Issued by /api/voice/token for this attempt - proves the interview happened.
     ticket: string;
     usage?: unknown;
+    // The editor contents at the end of a DSA round.
+    code?: unknown;
 }) {
     if (!isUuid(params?.interviewId)) return { success: false as const };
     const { interviewId } = params;
@@ -55,7 +57,7 @@ export async function saveTranscript(params: {
         }
 
         // Only the owner takes an interview (others personalize a copy).
-        const [interview] = await db.select({ id: interviews.id, userId: interviews.userId })
+        const [interview] = await db.select({ id: interviews.id, userId: interviews.userId, format: interviews.format })
             .from(interviews)
             .where(eq(interviews.id, interviewId))
             .limit(1);
@@ -74,6 +76,9 @@ export async function saveTranscript(params: {
             userId: user.id,
             attempt: attemptsUsed + 1,
             turns: transcript,
+            code: interview.format === "dsa" && typeof params.code === "string" && params.code.trim()
+                ? params.code.slice(0, MAX_CODE_CHARS)
+                : null,
         }).returning({ id: transcripts.id, attempt: transcripts.attempt });
 
         // Real Live API usage for this interview, for cost tracking. It shows
@@ -114,6 +119,23 @@ export async function getTranscriptTurns(interviewId: string, attempt: number): 
 
 // Completed attempts whose report generation failed - shown on the report
 // page with a retry button.
+// The code the candidate submitted in one DSA attempt, for the report.
+export async function getAttemptCode(interviewId: string, attempt: number): Promise<string | null> {
+    if (!isUuid(interviewId)) return null;
+    const user = await getCurrentUser();
+    if (!user) return null;
+
+    const [row] = await db.select({ code: transcripts.code })
+        .from(transcripts)
+        .where(and(
+            eq(transcripts.interviewId, interviewId),
+            eq(transcripts.userId, user.id),
+            eq(transcripts.attempt, attempt),
+        ))
+        .limit(1);
+    return row?.code ?? null;
+}
+
 export async function getPendingTranscripts(interviewId: string): Promise<Array<{ id: string; attempt: number; createdAt: string }>> {
     if (!isUuid(interviewId)) return [];
     const user = await getCurrentUser();

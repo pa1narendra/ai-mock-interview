@@ -20,6 +20,8 @@ export interface InterviewDraft {
   messages: SavedMessage[];
   ticket: string;
   usage?: LiveUsage;
+  // The editor contents in a DSA round.
+  code?: string;
   savedAt: number;
 }
 

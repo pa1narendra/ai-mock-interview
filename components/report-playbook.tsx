@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { Check } from 'lucide-react';
-import { cn, scoreBar, scoreTone } from '@/lib/utils';
+import { cn, roundLabel, scoreBar, scoreTone } from '@/lib/utils';
 
 // The interview report as a coach's playbook: score at a glance, then what to
 // fix before the next attempt, then a rehearsal sheet per question (weakest
@@ -53,10 +53,12 @@ const ReportPlaybook = ({ candidateName, interview, report, allReports, maxAttem
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-highlight">
             Interview playbook · Attempt {report.attempt} of {maxAttempts}
           </p>
-          <h1 className="text-4xl capitalize max-sm:text-3xl print:text-3xl">{interview.role} interview</h1>
+          <h1 className="text-4xl capitalize max-sm:text-3xl print:text-3xl">
+            {interview.role} {roundLabel(interview.format)?.toLowerCase() ?? 'interview'}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {candidateName} · <span className="capitalize">{interview.level}</span> ·{' '}
-            <span className="capitalize">{interview.type}</span> · {dayjs(report.createdAt).format('D MMM YYYY')}
+            <span className="capitalize">{roundLabel(interview.format, interview.difficulty) ?? interview.type}</span> · {dayjs(report.createdAt).format('D MMM YYYY')}
           </p>
         </div>
 

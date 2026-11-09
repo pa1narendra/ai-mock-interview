@@ -25,6 +25,9 @@ const Page = async ({ searchParams }: { searchParams: Promise<{ template?: strin
         role: source.role,
         level: source.level,
         type: source.type,
+        format: source.format ?? 'standard',
+        difficulty: source.difficulty ?? null,
+        language: source.language ?? null,
         techstack: source.techstack,
         voice: source.voice ?? null,
       }

@@ -4,6 +4,24 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.8.0] - 2026-11-09
+
+**Database:** no change needed in production - the round columns already exist there. `drizzle/0010_dsa_rounds.sql` creates them elsewhere and is a no-op in production.
+
+### Added
+- **DSA coding rounds.** Pick a difficulty (Easy, Medium, Hard) and a language (Python, JavaScript, Java, C++), and get 1-3 coding problems. Each problem appears on screen when the interviewer presents it, next to a code editor. You talk through your approach while you code, like a real interview.
+- **The interviewer reads your code.** It looks at the editor whenever it needs to (when you say you're done, or to discuss a line) and talks about what is actually there: a specific loop, a missed edge case, a bug. Code is reviewed, not run.
+- **System design rounds.** 1-2 design prompts, discussed out loud from requirements and scale through the architecture, data model, a deep dive on the hardest part, scaling and failure, to trade-offs.
+- **A timer per problem**: 15, 25 or 35 minutes by difficulty, 35 for a design prompt. When it runs out, the interviewer wraps the problem up and moves on, the way a real interviewer watches the clock. Long silences while you code no longer trigger "are you still there?" check-ins (only after two quiet minutes, and never mid-typing).
+- **Round-specific scoring.** Coding rounds are scored on approach, correctness, complexity analysis, code quality and communication. System design rounds are scored on requirements, architecture, data modeling, scalability and trade-offs, and communication. The submitted code is part of the score and is shown on the report. A wrong complexity claim caps the complexity score but doesn't mark working code as incorrect.
+- Round picker on the setup form. Rounds skip the job description and resume fields, and ask for 1-3 problems or 1-2 prompts instead of 15+ questions.
+- Two eval fixtures (a DSA round and a system design round). A wrong space-complexity claim is caught in every run, and repeat scores of the DSA round landed on the same total 3 times out of 3.
+
+### Changed
+- "Practice my gaps" on a coding or system design round creates the same kind of round, at the same difficulty and in the same language, aimed at the weak areas. Before, it fell back to a standard interview.
+- The code editor follows the light and dark theme, and it is only downloaded for coding rounds, with only that round's language.
+- The dashboard, interview page and report label rounds ("Coding round · Medium", "System design round").
+
 ## [0.7.3] - 2026-11-07
 
 **Database:** run `drizzle/0009_indexes.sql` once (adds 3 indexes, drops 2 redundant ones). The app works the same before or after, only faster with it.

@@ -16,9 +16,12 @@ vi.mock("@/lib/db", async () => {
 vi.mock("@/lib/actions/auth", () => ({ getCurrentUser: async () => auth.user }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: async () => ({ ok: limits.ok }) }));
+vi.mock("@/lib/ai/generate", () => ({
+  resilientGenerateObject: async () => ({ object: { questions: ["Problem A", "Problem B", "Problem C", "Problem D"] }, model: "test-model" }),
+}));
 
 const { saveTranscript } = await import("@/lib/actions/transcripts");
-const { deleteInterview, getCommunityInterviews, getInterview } = await import("@/lib/actions/interviews");
+const { createFocusedInterview, deleteInterview, getCommunityInterviews, getInterview } = await import("@/lib/actions/interviews");
 const { checkGenerationQuota } = await import("@/lib/generation-quota");
 const { issueSessionTicket } = await import("@/lib/session-ticket");
 
@@ -82,6 +85,15 @@ describe("saveTranscript", () => {
     expect(db().calls).not.toContain("insert");
   });
 
+  it("keeps the code of a DSA round, and never stores code for other rounds", async () => {
+    const ticket = issueSessionTicket(ME.id, INTERVIEW, 1);
+    db().queue([{ id: INTERVIEW, userId: ME.id, format: "dsa" }], [], [], [{ id: "t-1", attempt: 1 }]);
+    await saveTranscript({ interviewId: INTERVIEW, transcript: answers, ticket, code: "def solve(): pass" });
+    db().queue([{ id: INTERVIEW, userId: ME.id, format: "standard" }], [], [], [{ id: "t-2", attempt: 1 }]);
+    await saveTranscript({ interviewId: INTERVIEW, transcript: answers, ticket, code: "smuggled" });
+    expect(db().inserted).toMatchObject([{ code: "def solve(): pass" }, { code: null }]);
+  });
+
   it("doesn't use an attempt for fewer than 3 answers", async () => {
     const result = await saveTranscript({ interviewId: INTERVIEW, transcript: answers.slice(0, 4), ticket: issueSessionTicket(ME.id, INTERVIEW, 1) });
     expect(result).toMatchObject({ success: false, tooShort: true });
@@ -127,6 +139,24 @@ describe("interview privacy", () => {
     db().queue([{ id: INTERVIEW, role: "Dev", level: "junior", type: "technical", techstack: ["React"], userId: "user-other", createdAt: "2026-11-01" }]);
     const [interview] = (await getCommunityInterviews())!;
     expect(interview).toMatchObject({ questions: [], jdText: null, resumeSnapshot: null, fitSnapshot: null });
+  });
+});
+
+describe("practice my gaps", () => {
+  const SOURCE = "22222222-2222-4222-8222-222222222222";
+  it("practises a DSA round as a DSA round, at the same difficulty and language", async () => {
+    db().queue(
+      [{ id: SOURCE, userId: ME.id, role: "SWE", level: "mid", type: "technical", format: "dsa", difficulty: "hard", language: "java", techstack: ["Java", "DSA"], questions: ["P1", "P2"], voice: null }],
+      [{ areasForImprovement: ["Missed edge cases"], jdMatch: null, questionFeedback: [] }],
+      [{ count: 1 }],
+      [{ id: "new-id" }],
+    );
+    const result = await createFocusedInterview(SOURCE);
+    expect(result).toMatchObject({ success: true, interviewId: "new-id" });
+    const [row] = db().inserted as Array<Record<string, unknown>>;
+    expect(row).toMatchObject({ format: "dsa", difficulty: "hard", language: "java" });
+    // Same number of problems as the source (2), not the 5 standard focus questions.
+    expect(row.questions).toEqual(["Problem A", "Problem B"]);
   });
 });
 

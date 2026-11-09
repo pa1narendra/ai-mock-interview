@@ -61,15 +61,19 @@ export async function createReport(transcriptId: string) {
         // JD/resume context is personal to the interview's owner - when
         // someone else takes a community interview, score them generically.
         const withJd = Boolean(interview.jdText) && interview.userId === user.id;
+        const format = interview.format ?? "standard";
 
         const { object, model } = await resilientGenerateObject({
-            schema: scoringSchema(withJd),
+            schema: scoringSchema(withJd, format),
             system: SCORING_SYSTEM,
             prompt: buildScoringPrompt({
                 turns: transcript.turns,
                 questions: interview.questions,
                 role: interview.role,
                 level: interview.level,
+                format,
+                code: transcript.code,
+                language: interview.language,
                 jd: withJd
                     ? {
                         text: interview.jdText!,
@@ -81,8 +85,8 @@ export async function createReport(transcriptId: string) {
             ...SCORING_MODEL_SETTINGS,
         });
 
-        const result = applyScoringRules(object as ScoringResult);
-        const categoryScores = categoryScoresFromAnswers(result);
+        const result = applyScoringRules(object as ScoringResult, format);
+        const categoryScores = categoryScoresFromAnswers(result, format);
 
         // onConflictDoNothing: a concurrent call (double-click) for the same
         // attempt already saved its report - return that one instead.

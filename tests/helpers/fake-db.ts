@@ -11,6 +11,8 @@ type Result = unknown;
 export function createFakeDb() {
   const results: Result[] = [];
   const calls: string[] = [];
+  // Every .values(...) passed to an insert, in order.
+  const inserted: unknown[] = [];
 
   const chain = (): unknown =>
     new Proxy(function () {}, {
@@ -19,7 +21,10 @@ export function createFakeDb() {
           const next = results.length > 0 ? results.shift() : [];
           return (resolve: (value: Result) => void) => resolve(next);
         }
-        return () => chain();
+        return (...args: unknown[]) => {
+          if (prop === "values") inserted.push(args[0]);
+          return chain();
+        };
       },
       apply() {
         return chain();
@@ -41,12 +46,14 @@ export function createFakeDb() {
   return {
     db,
     calls,
+    inserted,
     queue(...next: Result[]) {
       results.push(...next);
     },
     reset() {
       results.length = 0;
       calls.length = 0;
+      inserted.length = 0;
     },
   };
 }

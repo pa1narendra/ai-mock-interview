@@ -8,14 +8,14 @@ import EditQuestions from '@/components/edit-questions';
 import { getCurrentUser } from '@/lib/actions/auth';
 import { getInterview } from '@/lib/actions/interviews';
 import { getAttemptsUsed } from '@/lib/actions/transcripts';
-import { roleAccent, roleInitials, scoreTone } from '@/lib/utils';
+import { roleAccent, roleInitials, roundLabel, scoreTone } from '@/lib/utils';
 import { getPermissions } from '@/lib/permissions';
 
 export async function generateMetadata({ params }: RouteParams): Promise<Metadata> {
   const { id } = await params;
   const interview = await getInterview(id);
   return {
-    title: interview ? `${interview.role} Interview` : 'Interview',
+    title: interview ? `${interview.role} ${roundLabel(interview.format) ?? 'Interview'}` : 'Interview',
   };
 }
 
@@ -34,6 +34,7 @@ const Page = async ({ params }: RouteParams) => {
   const attemptsExhausted = attemptsUsed >= maxAttempts;
 
   const accent = roleAccent(interview.role);
+  const round = roundLabel(interview.format, interview.difficulty);
 
   return (
     <>
@@ -46,13 +47,13 @@ const Page = async ({ params }: RouteParams) => {
             {roleInitials(interview.role)}
           </div>
           <div className="space-y-1.5">
-            <h3 className="capitalize">{interview.role} Interview</h3>
+            <h3 className="capitalize">{interview.role} {round ? <span className="normal-case">· {round}</span> : 'Interview'}</h3>
             <TechBadges stack={interview.techstack} />
           </div>
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-border bg-surface-raised px-4 py-1.5 text-sm font-medium capitalize text-mist-300">
-            {interview.type}
+            {round ? (interview.format === 'dsa' ? `${interview.questions.length} problem${interview.questions.length === 1 ? '' : 's'}` : `${interview.questions.length} prompt${interview.questions.length === 1 ? '' : 's'}`) : interview.type}
           </span>
           <span className="rounded-full border border-border bg-surface-raised px-4 py-1.5 text-sm font-medium text-mist-300">
             Attempt {Math.min(attemptsUsed + 1, maxAttempts)} of {maxAttempts}
@@ -80,7 +81,8 @@ const Page = async ({ params }: RouteParams) => {
         </section>
       ) : (
         <>
-          {perms.canPreviewQuestions && (
+          {/* A round reveals its problems one at a time, as the interviewer presents them. */}
+          {perms.canPreviewQuestions && !round && (
             <EditQuestions
               interviewId={id}
               questions={interview.questions}
@@ -92,6 +94,11 @@ const Page = async ({ params }: RouteParams) => {
             interviewId={id}
             attempt={attemptsUsed + 1}
             maxAttempts={maxAttempts}
+            format={interview.format}
+            // Standard questions stay on the server; a round's problems are shown on screen.
+            problems={round ? interview.questions : undefined}
+            difficulty={interview.difficulty}
+            language={interview.language}
           />
         </>
       )}

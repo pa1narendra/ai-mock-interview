@@ -11,6 +11,7 @@ import { MicPermissionError, PcmRecorder } from "@/lib/audio/recorder";
 import { PcmPlayer } from "@/lib/audio/player";
 import { LiveCaption } from "@/lib/audio/live-caption";
 import { saveDraft, type LiveUsage } from "@/lib/interview-draft";
+import { MAX_CODE_CHARS } from "@/lib/schemas";
 
 export enum SessionStatus {
   IDLE = "IDLE",
@@ -49,6 +50,22 @@ function addByModality(into: Record<string, number>, details?: Array<{ modality?
 // is activity, otherwise the nudge interrupts them every ~30s.
 const IDLE_MS = 25_000;
 const MAX_NUDGES = 3;
+// In a DSA or system design round, long quiet stretches are normal (typing,
+// thinking), so the interviewer only checks in after two quiet minutes.
+const ROUND_IDLE_MS = 120_000;
+const IDLE_NOTE =
+  "(system note: there has been a long silence. If you asked a question, briefly re-ask it; otherwise continue with the next interview question. Respond in English. Do not mention this note.)";
+const ROUND_IDLE_NOTE =
+  "(system note: the candidate has been quiet for two minutes - they may be thinking or coding. Check in with one short, friendly question about how it is going. Do not give a hint unless they ask. Respond in English. Do not mention this note.)";
+
+export interface RoundOptions {
+  format: "standard" | "dsa" | "system_design";
+  // The editor contents, read when the interviewer calls get_candidate_code.
+  getCode?: () => string;
+  language?: string | null;
+  // The interviewer moved to problem n (1-based) - show it on screen.
+  onStartProblem?: (n: number) => void;
+}
 
 // Live models wait for input before speaking, so a fresh session is kicked
 // off with an invisible note - otherwise the candidate sits in silence until
@@ -56,7 +73,15 @@ const MAX_NUDGES = 3;
 const KICKOFF_NOTE =
   "(system note: the candidate has joined and is ready. Start the interview now: greet them and ask the first question. Respond in English. Do not mention this note.)";
 
-export function useVoiceSession(interviewId: string) {
+export function useVoiceSession(interviewId: string, round: RoundOptions = { format: "standard" }) {
+  // Read through a ref so the session callbacks never go stale.
+  const roundRef = useRef(round);
+  useEffect(() => {
+    roundRef.current = round;
+  });
+  // Notes from the app (e.g. "time is up") wait until the interviewer has
+  // finished speaking - client content would cut it off mid-sentence.
+  const pendingNoteRef = useRef<string | null>(null);
   const [status, setStatusState] = useState<SessionStatus>(SessionStatus.IDLE);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [messages, setMessages] = useState<SavedMessage[]>([]);
@@ -218,6 +243,28 @@ export function useVoiceSession(interviewId: string) {
         resumeHandleRef.current = message.sessionResumptionUpdate.newHandle;
       }
 
+      for (const call of message.toolCall?.functionCalls ?? []) {
+        if (call.name === "start_problem") {
+          const n = Number((call.args as { number?: unknown } | undefined)?.number);
+          if (Number.isInteger(n) && n >= 1) roundRef.current.onStartProblem?.(n);
+          sessionRef.current?.sendToolResponse({
+            functionResponses: [{ id: call.id, name: call.name, response: { shown: true } }],
+          });
+        } else if (call.name === "get_candidate_code") {
+          const code = (roundRef.current.getCode?.() ?? "").slice(0, MAX_CODE_CHARS);
+          sessionRef.current?.sendToolResponse({
+            functionResponses: [{
+              id: call.id,
+              name: call.name,
+              response: {
+                language: roundRef.current.language ?? "unknown",
+                code: code.trim() ? code : "(the editor is empty - they have not written any code yet)",
+              },
+            }],
+          });
+        }
+      }
+
       const endCall = message.toolCall?.functionCalls?.find((fc) => fc.name === "end_interview");
       if (endCall) {
         sessionRef.current?.sendToolResponse({
@@ -300,6 +347,13 @@ export function useVoiceSession(interviewId: string) {
     connectRef.current = connect;
   }, [connect]);
 
+  const flushNote = useCallback(() => {
+    const note = pendingNoteRef.current;
+    if (!note || !sessionRef.current || statusRef.current !== SessionStatus.LIVE) return;
+    pendingNoteRef.current = null;
+    sessionRef.current.sendClientContent({ turns: [{ role: "user", parts: [{ text: note }] }], turnComplete: true });
+  }, []);
+
   const start = useCallback(async () => {
     if (statusRef.current === SessionStatus.CONNECTING || statusRef.current === SessionStatus.LIVE) return;
 
@@ -328,6 +382,7 @@ export function useVoiceSession(interviewId: string) {
         isSpeakingRef.current = false;
         lastActivityRef.current = Date.now();
         setIsSpeaking(false);
+        flushNote();
       };
       playerRef.current = player;
 
@@ -373,7 +428,8 @@ export function useVoiceSession(interviewId: string) {
           lastActivityRef.current = Date.now();
           return;
         }
-        if (Date.now() - lastActivityRef.current < IDLE_MS) return;
+        const isRound = roundRef.current.format !== "standard";
+        if (Date.now() - lastActivityRef.current < (isRound ? ROUND_IDLE_MS : IDLE_MS)) return;
 
         if (nudgeCountRef.current >= MAX_NUDGES) {
           toast.error("The interviewer stopped responding - finishing the interview.");
@@ -387,7 +443,7 @@ export function useVoiceSession(interviewId: string) {
           turns: [{
             role: "user",
             parts: [{
-              text: "(system note: there has been a long silence. If you asked a question, briefly re-ask it; otherwise continue with the next interview question. Respond in English. Do not mention this note.)",
+              text: isRound ? ROUND_IDLE_NOTE : IDLE_NOTE,
             }],
           }],
           turnComplete: true,
@@ -403,7 +459,7 @@ export function useVoiceSession(interviewId: string) {
         toast.error(e instanceof Error ? e.message : "Could not start the interview. Please try again.");
       }
     }
-  }, [connect, teardown, setStatus, finish]);
+  }, [connect, teardown, setStatus, finish, flushNote]);
 
   // Warm the SDK chunk while the candidate reads the page, so Start isn't slower.
   useEffect(() => {
@@ -415,8 +471,26 @@ export function useVoiceSession(interviewId: string) {
   useEffect(() => {
     if (status !== SessionStatus.LIVE && status !== SessionStatus.ENDED) return;
     if (!ticketRef.current || messages.length === 0) return;
-    saveDraft(interviewId, { messages, ticket: ticketRef.current, usage: usageRef.current });
+    saveDraft(interviewId, { messages, ticket: ticketRef.current, usage: usageRef.current, code: roundRef.current.getCode?.() });
   }, [messages, status, interviewId]);
+
+  // Also called by the round UI when the code changes (debounced there).
+  const persistDraft = useCallback(() => {
+    if (statusRef.current !== SessionStatus.LIVE || !ticketRef.current) return;
+    saveDraft(interviewId, { messages, ticket: ticketRef.current, usage: usageRef.current, code: roundRef.current.getCode?.() });
+  }, [interviewId, messages]);
+
+  // Typing in the editor is activity: no "are you there?" nudge mid-code.
+  const markActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+  }, []);
+
+  // Tell the interviewer something the candidate doesn't say (sent as soon
+  // as it isn't speaking). Not part of the transcript.
+  const sendNote = useCallback((text: string) => {
+    pendingNoteRef.current = text;
+    if (!isSpeakingRef.current) flushNote();
+  }, [flushNote]);
 
   const getTicket = useCallback(() => ticketRef.current, []);
   const getUsage = useCallback(() => usageRef.current, []);
@@ -429,5 +503,5 @@ export function useVoiceSession(interviewId: string) {
     };
   }, [teardown]);
 
-  return { status, isSpeaking, messages, caption, start, end, getTicket, getUsage };
+  return { status, isSpeaking, messages, caption, start, end, getTicket, getUsage, persistDraft, markActivity, sendNote };
 }

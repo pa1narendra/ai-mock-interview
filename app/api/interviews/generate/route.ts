@@ -4,10 +4,11 @@ import { interviews, resumes } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import {
   interviewRequestSchema,
+  LANGUAGE_OPTIONS,
   resumeExtractionSchema,
   fitSnapshotSchema,
 } from "@/lib/schemas";
-import { buildGenerationPrompt } from "@/lib/ai/prompts";
+import { buildGenerationPrompt, buildRoundPrompt } from "@/lib/ai/prompts";
 import { resilientGenerateObject } from "@/lib/ai/generate";
 import { checkGenerationQuota } from "@/lib/generation-quota";
 import { getPermissions } from "@/lib/permissions";
@@ -17,6 +18,7 @@ import { z } from "zod";
 
 const MAX_PDF_BYTES = 4 * 1024 * 1024; // Vercel rejects bodies over ~4.5MB
 const MAX_MARKDOWN_CHARS = 12_000;
+const LANGUAGE_LABELS: Record<string, string> = Object.fromEntries(LANGUAGE_OPTIONS.map((o) => [o.value, o.label]));
 
 // Loose on purpose - see the note in lib/schemas.ts. Limits enforced in code.
 const questionsSchema = z.array(z.string().min(1)).min(1);
@@ -77,7 +79,41 @@ export async function POST(request: Request) {
   }
   const perms = getPermissions(user);
 
-  const { role, level, techstack, type, amount, jd, useSavedResume, voice } = parsed.data;
+  const { role, level, techstack, type, amount, jd, useSavedResume, voice, format, difficulty, language } = parsed.data;
+
+  // DSA and system design rounds: a few problems or design prompts. They
+  // don't use the resume or job description.
+  if (format !== "standard") {
+    try {
+      const { object } = await resilientGenerateObject({
+        schema: z.object({ questions: questionsSchema }),
+        prompt: buildRoundPrompt({ format, role, level, amount, difficulty, language }),
+        thinking: false,
+      });
+      const [interview] = await db
+        .insert(interviews)
+        .values({
+          role,
+          type: "technical",
+          level,
+          format,
+          difficulty: format === "dsa" ? difficulty : null,
+          language: format === "dsa" ? language : null,
+          techstack: format === "dsa" ? [LANGUAGE_LABELS[language!] ?? "Code", "DSA"] : ["System Design"],
+          questions: (object as { questions: string[] }).questions.slice(0, amount),
+          userId: user.id,
+          voice: perms.canChooseVoice ? (voice ?? null) : null,
+        })
+        .returning({ id: interviews.id });
+      return Response.json({ success: true, interviewId: interview.id }, { status: 200 });
+    } catch (error) {
+      console.error("round generation failed", error);
+      return Response.json(
+        { success: false, message: "Failed to generate the round. Please try again." },
+        { status: 500 }
+      );
+    }
+  }
 
   // --- resolve resume context: new upload > saved resume > none ---
   let savedResume: { markdown: string; profile: ResumeProfile } | null = null;

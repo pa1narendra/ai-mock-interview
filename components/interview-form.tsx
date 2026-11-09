@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import dayjs from "dayjs"
@@ -12,7 +12,20 @@ import TextField from "./form/text-field"
 import SelectField from "./form/select-field"
 import TextareaField from "./form/textarea-field"
 import ConfirmDialog from "./confirm-dialog"
-import { interviewFormSchema, MAX_QUESTIONS, MIN_QUESTIONS, VOICE_OPTIONS, type InterviewFormValues } from "@/lib/schemas"
+import {
+  CODE_LANGUAGES,
+  DIFFICULTIES,
+  DIFFICULTY_OPTIONS,
+  interviewFormSchema,
+  LANGUAGE_OPTIONS,
+  ROUND_FORMATS,
+  ROUND_LIMITS,
+  ROUND_OPTIONS,
+  roundCountMessage,
+  VOICE_OPTIONS,
+  type InterviewFormValues,
+  type RoundFormat,
+} from "@/lib/schemas"
 import { cn } from "@/lib/utils"
 
 const levelOptions = [
@@ -35,6 +48,9 @@ interface InterviewTemplate {
   type: string
   techstack: string[]
   voice: string | null
+  format?: string
+  difficulty?: string | null
+  language?: string | null
 }
 
 interface InterviewFormProps {
@@ -46,6 +62,8 @@ interface InterviewFormProps {
 const LEVELS = ["junior", "mid", "senior"] as const
 const TYPES = ["technical", "behavioural", "mixed"] as const
 const VOICES = ["Aoede", "Kore", "Puck", "Charon"] as const
+const pick = <T extends string>(options: readonly T[], value: string | null | undefined, fallback: T): T =>
+  value && (options as readonly string[]).includes(value) ? (value as T) : fallback
 
 const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }: InterviewFormProps) => {
   const router = useRouter()
@@ -57,14 +75,18 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
   const [pendingValues, setPendingValues] = useState<InterviewFormValues | null>(null)
   const [generating, setGenerating] = useState(false)
 
+  const initialFormat = pick(ROUND_FORMATS, template?.format, "standard")
   const form = useForm<InterviewFormValues>({
     resolver: zodResolver(interviewFormSchema),
     defaultValues: {
+      format: initialFormat,
+      difficulty: pick(DIFFICULTIES, template?.difficulty, "medium"),
+      language: pick(CODE_LANGUAGES, template?.language, "python"),
       role: template?.role ?? "",
       level: template && (LEVELS as readonly string[]).includes(template.level) ? (template.level as typeof LEVELS[number]) : "junior",
       type: template && (TYPES as readonly string[]).includes(template.type) ? (template.type as typeof TYPES[number]) : "mixed",
       techstack: template?.techstack.join(", ") ?? "",
-      amount: MIN_QUESTIONS,
+      amount: ROUND_LIMITS[initialFormat].default,
       jd: "",
       voice: template?.voice && (VOICES as readonly string[]).includes(template.voice) ? (template.voice as typeof VOICES[number]) : "Aoede",
     },
@@ -84,8 +106,28 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
     setUseSaved(false)
   }
 
+  const format = useWatch({ control: form.control, name: "format" })
+  const isRound = format !== "standard"
+  const limits = ROUND_LIMITS[format]
+
+  function chooseFormat(next: RoundFormat) {
+    if (next === format) return
+    form.setValue("format", next)
+    form.setValue("amount", ROUND_LIMITS[next].default)
+    form.clearErrors()
+  }
+
   function onSubmit(values: InterviewFormValues) {
-    const targeted = mode === "targeted"
+    const targeted = mode === "targeted" && values.format === "standard"
+    const { min, max } = ROUND_LIMITS[values.format]
+    if (values.amount < min || values.amount > max) {
+      form.setError("amount", { message: roundCountMessage(values.format) })
+      return
+    }
+    if (values.format !== "standard") {
+      setPendingValues(values)
+      return
+    }
 
     if (targeted && !values.jd.trim()) {
       form.setError("jd", { message: "Paste the job description you're targeting" })
@@ -100,7 +142,7 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
   }
 
   async function generate(values: InterviewFormValues) {
-    const targeted = mode === "targeted"
+    const targeted = mode === "targeted" && values.format === "standard"
     setGenerating(true)
     try {
       const fd = new FormData()
@@ -110,6 +152,11 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
       fd.set("amount", String(values.amount))
       fd.set("techstack", values.techstack)
       fd.set("voice", values.voice)
+      fd.set("format", values.format)
+      if (values.format === "dsa") {
+        fd.set("difficulty", values.difficulty)
+        fd.set("language", values.language)
+      }
       if (targeted) {
         fd.set("jd", values.jd)
         if (resumeFile) fd.append("resume", resumeFile)
@@ -134,16 +181,41 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
     }
   }
 
-  const targeted = mode === "targeted"
+  const targeted = mode === "targeted" && !isRound
   const hasResumeContext = targeted && (resumeFile || (savedResume && useSaved))
+  const itemNoun = limits.noun
 
   return (
     <div className="panel w-full max-w-xl p-10 fade-up">
       {template && (
         <div className="mb-6 rounded-xl border border-spark-500/25 bg-spark-500/10 px-4 py-3 text-sm text-mist-200">
-          Personalizing the <span className="font-semibold capitalize text-spark-300">{template.role}</span> interview for you - add your resume below so the questions match your experience.
+          Personalizing the <span className="font-semibold capitalize text-spark-300">{template.role}</span> {isRound ? "round for you - you'll get fresh problems at the same level." : "interview for you - add your resume below so the questions match your experience."}
         </div>
       )}
+      <div className="mb-5 flex flex-col gap-2">
+        <span className="field-label">Round</span>
+        <div className="grid grid-cols-3 gap-2 max-sm:grid-cols-1" role="radiogroup" aria-label="Round">
+          {ROUND_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={format === option.value}
+              onClick={() => chooseFormat(option.value)}
+              className={cn(
+                "rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors",
+                format === option.value
+                  ? "border-spark-500/60 bg-spark-500/10 text-foreground"
+                  : "border-border text-mist-300 hover:text-mist-100"
+              )}
+            >
+              {option.label.replace(/ round$/, "").replace(" interview", "")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!isRound && (
       <div className="mb-7 grid grid-cols-2 gap-2 rounded-full border border-border bg-surface-raised p-1">
         {([
           { key: "targeted", label: "Target a job" },
@@ -162,6 +234,7 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
           </button>
         ))}
       </div>
+      )}
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
         <TextField
@@ -177,8 +250,16 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
 
         <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
           <SelectField control={form.control} name="level" label="Experience level" options={levelOptions} />
-          <SelectField control={form.control} name="type" label="Interview style" options={typeOptions} />
+          {isRound ? (
+            format === "dsa" && <SelectField control={form.control} name="difficulty" label="Difficulty" options={DIFFICULTY_OPTIONS} />
+          ) : (
+            <SelectField control={form.control} name="type" label="Interview style" options={typeOptions} />
+          )}
         </div>
+
+        {format === "dsa" && (
+          <SelectField control={form.control} name="language" label="Coding language" options={LANGUAGE_OPTIONS} />
+        )}
 
         {targeted && (
           <>
@@ -237,7 +318,7 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
           </>
         )}
 
-        {!targeted && (
+        {!targeted && !isRound && (
           <TextField
             control={form.control}
             name="techstack"
@@ -249,7 +330,7 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
         <TextField
           control={form.control}
           name="amount"
-          label={`Number of questions (${MIN_QUESTIONS}-${MAX_QUESTIONS})`}
+          label={`Number of ${itemNoun}s (${limits.min}-${limits.max})`}
           type="number"
         />
 
@@ -257,7 +338,7 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
           {generating ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              {hasResumeContext ? "Reading your resume and generating questions" : "Generating your questions"}
+              {hasResumeContext ? "Reading your resume and generating questions" : `Generating your ${itemNoun}s`}
             </>
           ) : (
             "Create interview"
@@ -271,12 +352,22 @@ const InterviewForm = ({ savedResume, template = null, canChooseVoice = false }:
         title="Create this interview?"
         description={
           pendingValues && (
+            pendingValues.format !== "standard" ? (
+              <>
+                {pendingValues.amount}{pendingValues.format === "dsa" ? ` ${pendingValues.difficulty} coding` : " system design"}{" "}
+                {ROUND_LIMITS[pendingValues.format].noun}{Number(pendingValues.amount) === 1 ? "" : "s"} for a{" "}
+                {levelOptions.find((o) => o.value === pendingValues.level)?.label.toLowerCase()} {pendingValues.role}
+                {pendingValues.format === "dsa" ? `, solved in ${LANGUAGE_OPTIONS.find((o) => o.value === pendingValues.language)?.label}` : ""}.
+                This counts toward your interview limit.
+              </>
+            ) : (
             <>
               {pendingValues.amount} {pendingValues.type} question{Number(pendingValues.amount) === 1 ? "" : "s"} for
               a {levelOptions.find((o) => o.value === pendingValues.level)?.label.toLowerCase()} {pendingValues.role}
               {hasResumeContext ? ", tailored to your resume and the job description" : targeted ? ", based on the job description" : ""}.
               This counts toward your interview limit.
             </>
+            )
           )
         }
         confirmLabel="Create interview"

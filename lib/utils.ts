@@ -80,3 +80,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
 }
+
+// "Coding round · Medium" / "System design round"; null for a standard interview.
+export function roundLabel(format?: string | null, difficulty?: string | null): string | null {
+  if (format === "dsa") return `Coding round${difficulty ? ` · ${difficulty[0].toUpperCase()}${difficulty.slice(1)}` : ""}`;
+  if (format === "system_design") return "System design round";
+  return null;
+}

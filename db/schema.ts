@@ -88,6 +88,11 @@ export const interviews = pgTable("interviews", {
   role: text("role").notNull(),
   level: text("level").notNull(),
   type: text("type").notNull(),
+  // The kind of round (lib/schemas.ts ROUND_FORMATS). Difficulty and
+  // language only apply to DSA rounds.
+  format: text("format").$type<"standard" | "dsa" | "system_design">().notNull().default("standard"),
+  difficulty: text("difficulty").$type<"easy" | "medium" | "hard">(),
+  language: text("language"),
   techstack: jsonb("techstack").$type<string[]>().notNull(),
   questions: jsonb("questions").$type<string[]>().notNull(),
   userId: text("user_id")
@@ -150,6 +155,8 @@ export const transcripts = pgTable("transcripts", {
     .references(() => user.id, { onDelete: "cascade" }),
   attempt: integer("attempt").notNull(),
   turns: jsonb("turns").$type<SavedMessage[]>().notNull(),
+  // The candidate's final code in a DSA round (null for other rounds).
+  code: text("code"),
   status: text("status").$type<"pending" | "reported">().notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [

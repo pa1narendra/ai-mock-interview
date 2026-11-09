@@ -74,6 +74,10 @@ interface Interview {
   id: string;
   role: string;
   level: string;
+  // Missing on rows built outside the database (e.g. tests) = "standard".
+  format?: "standard" | "dsa" | "system_design";
+  difficulty?: "easy" | "medium" | "hard" | null;
+  language?: string | null;
   questions: string[];
   techstack: string[];
   createdAt: string;

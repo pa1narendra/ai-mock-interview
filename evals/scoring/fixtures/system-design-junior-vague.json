@@ -1,0 +1,26 @@
+{
+  "label": "system-design-junior-vague",
+  "role": "Software Engineer",
+  "level": "junior",
+  "type": "technical",
+  "techstack": ["System Design"],
+  "format": "system_design",
+  "questions": [
+    "Title: URL shortener\nDesign a service like a link shortener: users submit a long URL and get a short link that redirects to it.\nScale: 10 million new links a month, 100 times more redirects than new links."
+  ],
+  "turns": [
+    { "role": "assistant", "content": "Hi! Today we'll design a URL shortener. It's on your screen. Where would you like to start?" },
+    { "role": "user", "content": "I'd start with an API. A POST endpoint that takes the long URL and returns a short code, and a GET on the short code that redirects." },
+    { "role": "assistant", "content": "Okay. Before we go further, what are the requirements?" },
+    { "role": "user", "content": "Functional is create and redirect. Non-functional, it should be fast and always available. Reads are way more than writes, like a hundred to one." },
+    { "role": "assistant", "content": "How would you generate the short code?" },
+    { "role": "user", "content": "I'd take an auto-increment id from the database and base62 encode it, so seven characters gives billions of codes. Or hash the URL, but then you get collisions." },
+    { "role": "assistant", "content": "And where do you store the mapping?" },
+    { "role": "user", "content": "In a database. Maybe Postgres, with the code as the primary key and the long URL." },
+    { "role": "assistant", "content": "With a hundred times more redirects, how do you handle the read load?" },
+    { "role": "user", "content": "We just add a cache, like Redis, and it will be fast. And add more servers behind a load balancer." },
+    { "role": "assistant", "content": "What gets cached, and what happens when the cache is full?" },
+    { "role": "user", "content": "The popular links I guess. When it's full it would... remove the old ones? I'm not too sure about the details there." },
+    { "role": "assistant", "content": "Thanks, that's our time. Good discussion." }
+  ]
+}

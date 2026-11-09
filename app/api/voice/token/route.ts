@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, EndSensitivity, type LiveConnectConfig } from "@google/genai";
+import { GoogleGenAI, Modality, EndSensitivity, Type, type FunctionDeclaration, type LiveConnectConfig } from "@google/genai";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getInterview } from "@/lib/actions/interviews";
 import { getAttemptsUsed } from "@/lib/actions/transcripts";
@@ -16,6 +16,33 @@ const requestSchema = z.object({
 // Reconnects within an interview have their own, looser cap. New sessions
 // are capped per tier (Permissions.dailyVoiceSessions).
 const DAILY_VOICE_RESUMES = 40;
+
+const END_INTERVIEW: FunctionDeclaration = {
+  name: "end_interview",
+  description: "Call this once you have thanked the candidate and said goodbye, to end the interview session.",
+};
+// Rounds show one problem at a time; the interviewer says which.
+const START_PROBLEM: FunctionDeclaration = {
+  name: "start_problem",
+  description: "Call this when you present a problem or design prompt, before describing it, so it is shown on the candidate's screen.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: { number: { type: Type.INTEGER, description: "The problem's number, starting at 1." } },
+    required: ["number"],
+  },
+};
+// DSA rounds: the interviewer reads the editor on demand, instead of the
+// code being pushed into every turn (which would be re-billed each turn).
+const GET_CANDIDATE_CODE: FunctionDeclaration = {
+  name: "get_candidate_code",
+  description: "Returns the code currently in the candidate's editor and its language. Call it whenever you need to see or discuss their code.",
+};
+
+function toolsFor(format: Interview["format"]): FunctionDeclaration[] {
+  if (format === "dsa") return [START_PROBLEM, GET_CANDIDATE_CODE, END_INTERVIEW];
+  if (format === "system_design") return [START_PROBLEM, END_INTERVIEW];
+  return [END_INTERVIEW];
+}
 
 // Each turn the Live API re-reads the whole conversation so far, so cost
 // grows with length. Past TRIGGER tokens the oldest turns are dropped down
@@ -121,13 +148,7 @@ export async function POST(request: Request) {
       : {},
     tools: [
       {
-        functionDeclarations: [
-          {
-            name: "end_interview",
-            description:
-              "Call this once you have thanked the candidate and said goodbye, to end the interview session.",
-          },
-        ],
+        functionDeclarations: toolsFor(interview.format),
       },
     ],
   };
