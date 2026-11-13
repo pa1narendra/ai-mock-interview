@@ -4,6 +4,11 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.8.1] - 2026-11-13
+
+### Fixed
+- Sign-in (and any other page) no longer fails with a 500 when the database lookup briefly fails on a flaky network. Queries whose connection never got out (a failed DNS lookup, a refused or timed-out connection) are retried twice, which is safe because the database never saw them. Failures after a request was sent are never retried, so a write can't run twice. Each failure now logs its real cause (for example `[db] database request failed (ENOTFOUND)`), which the driver's "fetch failed" used to hide.
+
 ## [0.8.0] - 2026-11-09
 
 **Database:** no change needed in production - the round columns already exist there. `drizzle/0010_dsa_rounds.sql` creates them elsewhere and is a no-op in production.
