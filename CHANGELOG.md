@@ -4,6 +4,25 @@ All notable changes to Mockstar are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor = features, patch = fixes).
 
+## [0.9.0] - 2026-11-14
+
+**Database:** `drizzle/0011_problem_specs.sql` (one nullable column) is already applied in production.
+
+### Added
+- **Run your code** in coding rounds, for Python and JavaScript. Run checks the examples; Submit also checks 6-8 hidden test cases (edge cases like empty input, duplicates, negatives). Results show which test failed, the input, what was expected and what your code returned, plus anything it printed. Code runs in your browser - free, and an infinite loop is stopped after 4 seconds without freezing the page. Python downloads once (about a second on a good connection) the first time.
+- **One editor per problem**, each starting with the problem's function signature (`def two_sum(nums, target):`), so problem 1 and problem 2 no longer share one text box.
+- **Problems are checked before you see them.** The AI writes each problem with test cases and its own reference solution; the server runs that solution against every test in an isolated sandbox and drops anything inconsistent, regenerating a problem whose examples are wrong. The examples on screen are generated from the same checked test data, so they can't be wrong. The reference solution is never stored or sent to the browser.
+- The interviewer sees your latest test run when it reads your code, and points you at a failing input without telling you the fix.
+- When the interview ends, every problem you wrote code for is run against all its tests, and the report shows each problem's code with "x/y tests passed" and the first failing case.
+
+### Changed
+- Scoring uses the test results as evidence: a problem's correctness score can't exceed the share of its tests that passed, and the problem's score is capped the same way (never below 50 for that reason alone).
+- Java and C++ rounds work as before, with one editor per problem: code is reviewed, not run.
+
+### Fixed
+- The interviewer's speech before and after it shows a problem no longer runs together in one bubble ("...the problem?Hello!").
+- Problem constraints keep their exponents (10^4 instead of "104").
+
 ## [0.8.1] - 2026-11-13
 
 ### Fixed

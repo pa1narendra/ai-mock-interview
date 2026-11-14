@@ -7,7 +7,11 @@ import { db } from "@/lib/db";
 import { interviews, reports, transcripts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { getPermissions } from "@/lib/permissions";
-import { countUserTurns, liveUsageSchema, MAX_CODE_CHARS, MIN_ANSWERS_FOR_ATTEMPT, transcriptSchema } from "@/lib/schemas";
+import { countUserTurns, liveUsageSchema, MIN_ANSWERS_FOR_ATTEMPT, transcriptSchema } from "@/lib/schemas";
+import { parseSubmission, serializeSubmission } from "@/lib/problems";
+
+// Three problems of code plus their test results, with room to spare.
+const MAX_SUBMISSION_CHARS = 60_000;
 import { verifySessionTicket } from "@/lib/session-ticket";
 
 // Attempts are counted from transcripts (an interview you completed consumes
@@ -76,8 +80,10 @@ export async function saveTranscript(params: {
             userId: user.id,
             attempt: attemptsUsed + 1,
             turns: transcript,
+            // Re-serialized so every stored attempt has the same shape and
+            // per-problem size limits (a plain string becomes one problem).
             code: interview.format === "dsa" && typeof params.code === "string" && params.code.trim()
-                ? params.code.slice(0, MAX_CODE_CHARS)
+                ? serializeSubmission(parseSubmission(params.code.slice(0, MAX_SUBMISSION_CHARS)))
                 : null,
         }).returning({ id: transcripts.id, attempt: transcripts.attempt });
 

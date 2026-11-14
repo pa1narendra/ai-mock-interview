@@ -99,6 +99,7 @@ const Page = async ({ params }: RouteParams) => {
             problems={round ? interview.questions : undefined}
             difficulty={interview.difficulty}
             language={interview.language}
+            problemSpecs={round ? interview.problemSpecs : undefined}
           />
         </>
       )}

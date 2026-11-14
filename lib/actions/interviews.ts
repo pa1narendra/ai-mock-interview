@@ -11,6 +11,7 @@ import { getCurrentUser } from "@/lib/actions/auth";
 import { getReportForInterview } from "@/lib/actions/reports";
 import { resilientGenerateObject } from "@/lib/ai/generate";
 import { buildFocusedQuestionsPrompt, buildRoundPrompt } from "@/lib/ai/prompts";
+import { generateDsaRound } from "@/lib/ai/dsa-problems";
 import { ROUND_LIMITS } from "@/lib/schemas";
 import { checkGenerationQuota } from "@/lib/generation-quota";
 
@@ -51,7 +52,7 @@ export async function getCommunityInterviews(limit = 20): Promise<Interview[] | 
         .where(ne(interviews.userId, user.id))
         .orderBy(desc(interviews.createdAt))
         .limit(limit);
-    return rows.map((row) => ({ ...row, questions: [], jdText: null, resumeSnapshot: null, fitSnapshot: null, voice: null }));
+    return rows.map((row) => ({ ...row, questions: [], problemSpecs: null, jdText: null, resumeSnapshot: null, fitSnapshot: null, voice: null }));
 }
 
 export async function deleteInterview(id: string): Promise<{ success: boolean }> {
@@ -128,19 +129,33 @@ export async function createFocusedInterview(
         const { min, max } = ROUND_LIMITS[format];
         const amount = Math.min(max, Math.max(min, source.questions.length));
         try {
-            const { object } = await resilientGenerateObject({
-                schema: z.object({ questions: z.array(z.string().min(1)).min(1) }),
-                thinking: false,
-                prompt: buildRoundPrompt({
-                    format,
+            let questions: string[];
+            let problemSpecs: Interview["problemSpecs"] = null;
+            if (format === "dsa") {
+                const round = await generateDsaRound({
                     role: source.role,
                     level: source.level,
                     amount,
                     difficulty: source.difficulty,
                     language: source.language,
                     focus: weakAreas,
-                }),
-            });
+                });
+                questions = round.questions.slice(0, amount);
+                problemSpecs = round.specs.slice(0, amount);
+            } else {
+                const { object } = await resilientGenerateObject({
+                    schema: z.object({ questions: z.array(z.string().min(1)).min(1) }),
+                    thinking: false,
+                    prompt: buildRoundPrompt({
+                        format,
+                        role: source.role,
+                        level: source.level,
+                        amount,
+                        focus: weakAreas,
+                    }),
+                });
+                questions = (object as { questions: string[] }).questions.slice(0, amount);
+            }
             const [interview] = await db.insert(interviews).values({
                 role: source.role,
                 type: source.type,
@@ -149,7 +164,8 @@ export async function createFocusedInterview(
                 difficulty: source.difficulty ?? null,
                 language: source.language ?? null,
                 techstack: source.techstack,
-                questions: (object as { questions: string[] }).questions.slice(0, amount),
+                questions,
+                problemSpecs,
                 userId: user.id,
                 voice: source.voice ?? null,
             }).returning({ id: interviews.id });
@@ -215,7 +231,7 @@ export async function getInterview(id: string): Promise<Interview | null> {
     // name the owner's employers and projects from their resume. Community
     // interviews are taken by personalizing a fresh copy, never verbatim.
     if (interview.userId !== user.id) {
-        return { ...interview, questions: [], jdText: null, resumeSnapshot: null, fitSnapshot: null };
+        return { ...interview, questions: [], problemSpecs: null, jdText: null, resumeSnapshot: null, fitSnapshot: null };
     }
 
     return interview;

@@ -35,7 +35,11 @@ const START_PROBLEM: FunctionDeclaration = {
 // code being pushed into every turn (which would be re-billed each turn).
 const GET_CANDIDATE_CODE: FunctionDeclaration = {
   name: "get_candidate_code",
-  description: "Returns the code currently in the candidate's editor and its language. Call it whenever you need to see or discuss their code.",
+  description: "Returns the candidate's code for a problem (default: the one on screen), its language, and the result of their latest test run if they ran it. Call it whenever you need to see or discuss their code.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: { problem: { type: Type.INTEGER, description: "Which problem's code, starting at 1. Omit for the current one." } },
+  },
 };
 
 function toolsFor(format: Interview["format"]): FunctionDeclaration[] {

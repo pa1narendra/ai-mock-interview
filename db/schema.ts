@@ -95,6 +95,10 @@ export const interviews = pgTable("interviews", {
   language: text("language"),
   techstack: jsonb("techstack").$type<string[]>().notNull(),
   questions: jsonb("questions").$type<string[]>().notNull(),
+  // DSA rounds: each problem's function signature and checked test cases
+  // (lib/problems.ts), aligned with questions; null for a problem that is
+  // reviewed only. Null for other rounds and for DSA rounds before 0.9.0.
+  problemSpecs: jsonb("problem_specs").$type<Array<import("@/lib/problems").ProblemSpec | null>>(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),

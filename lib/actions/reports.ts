@@ -16,6 +16,7 @@ import {
     MIN_ANSWERS_FOR_ATTEMPT,
 } from "@/lib/schemas";
 import { averageScore, clampScore, isUuid } from "@/lib/utils";
+import { parseSubmission } from "@/lib/problems";
 
 // Generates a report from a transcript saved by saveTranscript(). The
 // transcript is durable, so a failure here loses nothing - the report page
@@ -85,7 +86,15 @@ export async function createReport(transcriptId: string) {
             ...SCORING_MODEL_SETTINGS,
         });
 
-        const result = applyScoringRules(object as ScoringResult, format);
+        // DSA: each problem's test results, matched to the scorer's per-problem
+        // feedback by title (then by order).
+        const testRuns = format === "dsa"
+            ? parseSubmission(transcript.code).map((p, i) => ({
+                title: interview.problemSpecs?.[i]?.title ?? interview.questions[i]?.match(/^Title:\s*(.+)$/m)?.[1]?.trim(),
+                run: p.run,
+            }))
+            : [];
+        const result = applyScoringRules(object as ScoringResult, format, testRuns);
         const categoryScores = categoryScoresFromAnswers(result, format);
 
         // onConflictDoNothing: a concurrent call (double-click) for the same

@@ -3,6 +3,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeDb } from "./helpers/fake-db";
+import { serializeSubmission } from "@/lib/problems";
 
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createFakeDb> | null }));
 const auth = vi.hoisted(() => ({ user: null as User | null }));
@@ -18,6 +19,12 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: async () => ({ ok: limits.ok }) }));
 vi.mock("@/lib/ai/generate", () => ({
   resilientGenerateObject: async () => ({ object: { questions: ["Problem A", "Problem B", "Problem C", "Problem D"] }, model: "test-model" }),
+}));
+vi.mock("@/lib/ai/dsa-problems", () => ({
+  generateDsaRound: async ({ amount }: { amount: number }) => ({
+    questions: ["Problem A", "Problem B", "Problem C"].slice(0, amount),
+    specs: Array.from({ length: amount }, () => null),
+  }),
 }));
 
 const { saveTranscript } = await import("@/lib/actions/transcripts");
@@ -91,7 +98,8 @@ describe("saveTranscript", () => {
     await saveTranscript({ interviewId: INTERVIEW, transcript: answers, ticket, code: "def solve(): pass" });
     db().queue([{ id: INTERVIEW, userId: ME.id, format: "standard" }], [], [], [{ id: "t-2", attempt: 1 }]);
     await saveTranscript({ interviewId: INTERVIEW, transcript: answers, ticket, code: "smuggled" });
-    expect(db().inserted).toMatchObject([{ code: "def solve(): pass" }, { code: null }]);
+    // Stored in the per-problem format (a plain string becomes one problem).
+    expect(db().inserted).toMatchObject([{ code: serializeSubmission([{ code: "def solve(): pass" }]) }, { code: null }]);
   });
 
   it("doesn't use an attempt for fewer than 3 answers", async () => {

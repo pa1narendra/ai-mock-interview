@@ -5,7 +5,6 @@ import { saveTranscript } from '@/lib/actions/transcripts';
 import { countUserTurns, LANGUAGE_OPTIONS, MIN_ANSWERS_FOR_ATTEMPT, PROBLEM_MINUTES } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
 import { SessionStatus, useVoiceSession } from '@/hooks/use-voice-session';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -13,26 +12,16 @@ import { Mic, PhoneOff, Loader2, RotateCcw, Timer } from 'lucide-react';
 import Transcript from '@/components/transcript';
 import ConfirmDialog from '@/components/confirm-dialog';
 import { clearDraft, loadDraft, type InterviewDraft, type LiveUsage } from '@/lib/interview-draft';
+import CodingWorkspace, { type RunKind, type RunView } from '@/components/coding-workspace';
+import { describeRun, isRunnable, serializeSubmission, starterCode, type ProblemSpec, type TestRunSummary } from '@/lib/problems';
+import { isPythonReady, runTests, summarize, warmPython } from '@/lib/runner';
 import dayjs from 'dayjs';
-
-// The editor (CodeMirror + one language pack) is only downloaded for DSA rounds.
-const CodeEditor = dynamic(() => import('@/components/code-editor'), {
-  ssr: false,
-  loading: () => <div className="min-h-[360px] animate-pulse rounded-xl border border-border bg-surface-raised" />,
-});
 
 const statusLabel: Record<SessionStatus, string> = {
   [SessionStatus.IDLE]: 'Ready when you are',
   [SessionStatus.CONNECTING]: 'Connecting',
   [SessionStatus.LIVE]: 'Interview in progress',
   [SessionStatus.ENDED]: 'Interview complete',
-};
-
-const STARTER_CODE: Record<string, string> = {
-  python: '# Write your solution here\n',
-  javascript: '// Write your solution here\n',
-  java: 'class Solution {\n    // Write your solution here\n}\n',
-  cpp: '#include <bits/stdc++.h>\nusing namespace std;\n\n// Write your solution here\n',
 };
 
 const mmss = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -47,6 +36,8 @@ interface VoiceSessionProps {
   problems?: string[];
   difficulty?: string | null;
   language?: string | null;
+  // DSA rounds: runnable specs aligned with problems (null = reviewed only).
+  problemSpecs?: Array<ProblemSpec | null> | null;
 }
 
 const VoiceSession = ({
@@ -58,6 +49,7 @@ const VoiceSession = ({
   problems = [],
   difficulty,
   language,
+  problemSpecs,
 }: VoiceSessionProps) => {
   const router = useRouter();
   const isRound = format !== 'standard';
@@ -69,8 +61,17 @@ const VoiceSession = ({
   const [viewing, setViewing] = useState(0); // the tab the candidate is looking at
   const [problemStartedAt, setProblemStartedAt] = useState<number | null>(null);
   const timeUpSentRef = useRef(new Set<number>());
-  const [code, setCode] = useState(() => STARTER_CODE[language ?? ''] ?? '');
-  const codeRef = useRef(code);
+  // One editor per problem, each starting from the problem's signature.
+  const specFor = useCallback((n: number) => problemSpecs?.[n - 1] ?? null, [problemSpecs]);
+  const starters = useMemo(() => problems.map((_, i) => starterCode(problemSpecs?.[i], language)), [problems, problemSpecs, language]);
+  const [codes, setCodes] = useState<string[]>(starters);
+  const codesRef = useRef(codes);
+  // Latest test run per problem: shown under the editor, given to the
+  // interviewer, saved with the attempt.
+  const [runs, setRuns] = useState<Record<number, RunView>>({});
+  const summariesRef = useRef<Record<number, TestRunSummary>>({});
+  const [running, setRunning] = useState<RunKind | null>(null);
+  const runnable = coding && isRunnable(language);
 
   const onStartProblem = useCallback((n: number) => {
     const number = Math.min(Math.max(1, n), Math.max(1, problems.length));
@@ -79,9 +80,25 @@ const VoiceSession = ({
     setProblemStartedAt(Date.now());
   }, [problems.length]);
 
+  // Mutable view of the problem on screen, for callbacks that run outside render.
+  const viewRef = useRef(0);
+  const buildSubmission = useCallback(
+    () => serializeSubmission(codesRef.current.map((code, i) => ({ code, run: summariesRef.current[i + 1] ?? null }))),
+    []
+  );
   const round = useMemo(
-    () => ({ format, language, getCode: () => codeRef.current, onStartProblem }),
-    [format, language, onStartProblem]
+    () => ({
+      format,
+      language,
+      onStartProblem,
+      getSubmission: buildSubmission,
+      getCode: (problem?: number) => {
+        const n = problem && problem <= codesRef.current.length ? problem : Math.max(1, viewRef.current);
+        const summary = summariesRef.current[n];
+        return { problem: n, code: codesRef.current[n - 1] ?? '', testResults: summary ? describeRun(summary) : undefined };
+      },
+    }),
+    [format, language, onStartProblem, buildSubmission]
   );
   const { status, isSpeaking, messages, caption, start, end, getTicket, getUsage, persistDraft, markActivity, sendNote } =
     useVoiceSession(interviewId, round);
@@ -147,10 +164,25 @@ const VoiceSession = ({
     }
   }, [interviewId, router]);
 
-  const finishInterview = useCallback(
-    () => saveAndScore(messages, getTicket(), getUsage(), coding ? codeRef.current : undefined),
-    [saveAndScore, messages, getTicket, getUsage, coding]
-  );
+  // Before saving a DSA attempt, every problem the candidate wrote code for
+  // is run against all its tests, so the score rests on real results.
+  const runFinalTests = useCallback(async () => {
+    if (!runnable || !language) return;
+    const deadline = Date.now() + 20_000;
+    for (let i = 0; i < codesRef.current.length && Date.now() < deadline; i++) {
+      const spec = problemSpecs?.[i];
+      const code = codesRef.current[i];
+      if (!spec || code.trim() === starters[i].trim()) continue;
+      const tests = [...spec.examples, ...spec.hidden];
+      const outcome = await runTests(language, code, spec, tests);
+      summariesRef.current[i + 1] = summarize(outcome, 'all', tests.length);
+    }
+  }, [runnable, problemSpecs, starters, language]);
+
+  const finishInterview = useCallback(async () => {
+    if (coding) await runFinalTests().catch(() => {});
+    return saveAndScore(messages, getTicket(), getUsage(), coding ? buildSubmission() : undefined);
+  }, [saveAndScore, messages, getTicket, getUsage, coding, runFinalTests, buildSubmission]);
   // Retrying a failed save must resend the same answers - the recovered
   // ones if that's what was being saved.
   const [saving, setSaving] = useState<InterviewDraft | null>(null);
@@ -207,6 +239,14 @@ const VoiceSession = ({
   const fallbackFirst = isRound && isLive && shownUpTo === 0 && messages.some((m) => m.role === 'assistant');
   const shown = shownUpTo > 0 ? shownUpTo : fallbackFirst ? 1 : 0;
   const view = viewing > 0 ? viewing : shown;
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  // Python runs in the browser: start downloading it as the interview starts.
+  useEffect(() => {
+    if (isLive && runnable && language === 'python') warmPython();
+  }, [isLive, runnable, language]);
 
   // Per-problem budget. When it runs out, the interviewer is told (once) to
   // wrap the problem up, the way a real interviewer watches the clock.
@@ -226,8 +266,12 @@ const VoiceSession = ({
   // Code edits count as activity and are kept in the crash-recovery draft.
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleCode = useCallback((value: string) => {
-    codeRef.current = value;
-    setCode(value);
+    const index = viewRef.current - 1;
+    if (index < 0) return;
+    const next = [...codesRef.current];
+    next[index] = value;
+    codesRef.current = next;
+    setCodes(next);
     markActivity();
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     draftTimerRef.current = setTimeout(persistDraft, 2000);
@@ -236,11 +280,30 @@ const VoiceSession = ({
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
   }, []);
 
+  const handleRun = useCallback(async (kind: RunKind) => {
+    const n = viewRef.current;
+    const spec = specFor(n);
+    if (!spec || !language) return;
+    setRunning(kind);
+    markActivity();
+    const tests = kind === 'all' ? [...spec.examples, ...spec.hidden] : spec.examples;
+    const outcome = await runTests(language, codesRef.current[n - 1] ?? '', spec, tests);
+    summariesRef.current[n] = summarize(outcome, kind, tests.length);
+    setRuns((prev) => ({ ...prev, [n]: { kind, outcome } }));
+    setRunning(null);
+    markActivity();
+    persistDraft();
+  }, [specFor, language, markActivity, persistDraft]);
+
   const resetRound = () => {
     setShownUpTo(0);
     setViewing(0);
     setProblemStartedAt(null);
     timeUpSentRef.current = new Set();
+    codesRef.current = starters;
+    setCodes(starters);
+    summariesRef.current = {};
+    setRuns({});
   };
 
   const statusDot = (
@@ -429,7 +492,18 @@ const VoiceSession = ({
               )}
             </div>
             {current ? (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">{current}</p>
+              // Statements start with "Title: ..." - shown as a heading.
+              (() => {
+                const match = current.match(/^Title:\s*(.+)\n?/);
+                return (
+                  <div className="space-y-2">
+                    {match && <h3 className="text-lg text-foreground">{match[1].trim()}</h3>}
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">
+                      {match ? current.slice(match[0].length) : current}
+                    </p>
+                  </div>
+                );
+              })()
             ) : (
               <p className="text-sm text-muted-foreground">
                 {isLive
@@ -440,14 +514,19 @@ const VoiceSession = ({
           </div>
 
           {coding && (
-            <div className="flex min-w-0 flex-col gap-2">
-              <span className="field-label">Your code · {languageLabel}</span>
-              <CodeEditor language={language ?? 'python'} value={code} onChange={handleCode} />
-              <p className="text-xs text-muted-foreground">
-                The interviewer reads your code when they review it. Keep talking through your thinking - it&apos;s
-                scored too. Code isn&apos;t run; it&apos;s reviewed.
-              </p>
-            </div>
+            <CodingWorkspace
+              language={language ?? 'python'}
+              languageLabel={languageLabel}
+              problemNumber={view}
+              spec={view > 0 ? specFor(view) : null}
+              code={view > 0 ? codes[view - 1] ?? '' : starters[0] ?? ''}
+              onChange={handleCode}
+              runnable={runnable}
+              running={running}
+              lastRun={view > 0 ? runs[view] ?? null : null}
+              onRun={(kind) => void handleRun(kind)}
+              pythonLoading={language === 'python' && !isPythonReady()}
+            />
           )}
         </div>
 

@@ -60,8 +60,11 @@ const ROUND_IDLE_NOTE =
 
 export interface RoundOptions {
   format: "standard" | "dsa" | "system_design";
-  // The editor contents, read when the interviewer calls get_candidate_code.
-  getCode?: () => string;
+  // A problem's code and latest test results, read when the interviewer calls
+  // get_candidate_code (problem defaults to the one on screen).
+  getCode?: (problem?: number) => { problem: number; code: string; testResults?: string };
+  // Everything the candidate wrote, as saved with the attempt (crash drafts too).
+  getSubmission?: () => string;
   language?: string | null;
   // The interviewer moved to problem n (1-based) - show it on screen.
   onStartProblem?: (n: number) => void;
@@ -243,6 +246,10 @@ export function useVoiceSession(interviewId: string, round: RoundOptions = { for
         resumeHandleRef.current = message.sessionResumptionUpdate.newHandle;
       }
 
+      // A tool call splits the interviewer's speech (e.g. greeting, then the
+      // problem): end the current bubble so the two parts don't run together.
+      if (message.toolCall?.functionCalls?.length) flushBuffer(modelBufferRef, "assistant");
+
       for (const call of message.toolCall?.functionCalls ?? []) {
         if (call.name === "start_problem") {
           const n = Number((call.args as { number?: unknown } | undefined)?.number);
@@ -251,14 +258,18 @@ export function useVoiceSession(interviewId: string, round: RoundOptions = { for
             functionResponses: [{ id: call.id, name: call.name, response: { shown: true } }],
           });
         } else if (call.name === "get_candidate_code") {
-          const code = (roundRef.current.getCode?.() ?? "").slice(0, MAX_CODE_CHARS);
+          const asked = Number((call.args as { problem?: unknown } | undefined)?.problem);
+          const current = roundRef.current.getCode?.(Number.isInteger(asked) && asked >= 1 ? asked : undefined);
+          const code = (current?.code ?? "").slice(0, MAX_CODE_CHARS);
           sessionRef.current?.sendToolResponse({
             functionResponses: [{
               id: call.id,
               name: call.name,
               response: {
+                problem: current?.problem ?? 1,
                 language: roundRef.current.language ?? "unknown",
                 code: code.trim() ? code : "(the editor is empty - they have not written any code yet)",
+                ...(current?.testResults ? { latestTestRun: current.testResults } : {}),
               },
             }],
           });
@@ -471,13 +482,13 @@ export function useVoiceSession(interviewId: string, round: RoundOptions = { for
   useEffect(() => {
     if (status !== SessionStatus.LIVE && status !== SessionStatus.ENDED) return;
     if (!ticketRef.current || messages.length === 0) return;
-    saveDraft(interviewId, { messages, ticket: ticketRef.current, usage: usageRef.current, code: roundRef.current.getCode?.() });
+    saveDraft(interviewId, { messages, ticket: ticketRef.current, usage: usageRef.current, code: roundRef.current.getSubmission?.() });
   }, [messages, status, interviewId]);
 
   // Also called by the round UI when the code changes (debounced there).
   const persistDraft = useCallback(() => {
     if (statusRef.current !== SessionStatus.LIVE || !ticketRef.current) return;
-    saveDraft(interviewId, { messages, ticket: ticketRef.current, usage: usageRef.current, code: roundRef.current.getCode?.() });
+    saveDraft(interviewId, { messages, ticket: ticketRef.current, usage: usageRef.current, code: roundRef.current.getSubmission?.() });
   }, [interviewId, messages]);
 
   // Typing in the editor is activity: no "are you there?" nudge mid-code.

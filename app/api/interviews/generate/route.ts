@@ -10,6 +10,7 @@ import {
 } from "@/lib/schemas";
 import { buildGenerationPrompt, buildRoundPrompt } from "@/lib/ai/prompts";
 import { resilientGenerateObject } from "@/lib/ai/generate";
+import { generateDsaRound } from "@/lib/ai/dsa-problems";
 import { checkGenerationQuota } from "@/lib/generation-quota";
 import { getPermissions } from "@/lib/permissions";
 import { clampScore } from "@/lib/utils";
@@ -85,11 +86,21 @@ export async function POST(request: Request) {
   // don't use the resume or job description.
   if (format !== "standard") {
     try {
-      const { object } = await resilientGenerateObject({
-        schema: z.object({ questions: questionsSchema }),
-        prompt: buildRoundPrompt({ format, role, level, amount, difficulty, language }),
-        thinking: false,
-      });
+      // DSA: runnable problems with checked tests. System design: prompts.
+      let questions: string[];
+      let problemSpecs: Interview["problemSpecs"] = null;
+      if (format === "dsa") {
+        const round = await generateDsaRound({ role, level, amount, difficulty, language });
+        questions = round.questions.slice(0, amount);
+        problemSpecs = round.specs.slice(0, amount);
+      } else {
+        const { object } = await resilientGenerateObject({
+          schema: z.object({ questions: questionsSchema }),
+          prompt: buildRoundPrompt({ format, role, level, amount, difficulty, language }),
+          thinking: false,
+        });
+        questions = (object as { questions: string[] }).questions.slice(0, amount);
+      }
       const [interview] = await db
         .insert(interviews)
         .values({
@@ -100,7 +111,8 @@ export async function POST(request: Request) {
           difficulty: format === "dsa" ? difficulty : null,
           language: format === "dsa" ? language : null,
           techstack: format === "dsa" ? [LANGUAGE_LABELS[language!] ?? "Code", "DSA"] : ["System Design"],
-          questions: (object as { questions: string[] }).questions.slice(0, amount),
+          questions,
+          problemSpecs,
           userId: user.id,
           voice: perms.canChooseVoice ? (voice ?? null) : null,
         })

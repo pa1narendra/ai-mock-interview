@@ -10,6 +10,7 @@ import { getAttemptCode, getPendingTranscripts } from '@/lib/actions/transcripts
 import { getPermissions } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { LANGUAGE_OPTIONS } from '@/lib/schemas';
+import { parseSubmission } from '@/lib/problems';
 import GenerateReportButton from '@/components/generate-report-button';
 import PracticeGapsButton from '@/components/practice-gaps-button';
 import ShareReportButton from '@/components/share-report-button';
@@ -89,7 +90,14 @@ const Page = async ({ params, searchParams }: RouteParams) => {
 
   const pdfName = `Mockstar - ${interview.role} interview - attempt ${report.attempt}`;
   // DSA rounds: the code the candidate submitted with this attempt.
-  const submittedCode = interview.format === 'dsa' ? await getAttemptCode(id, report.attempt) : null;
+  const submitted = interview.format === 'dsa' ? parseSubmission(await getAttemptCode(id, report.attempt)) : [];
+  const codeBlocks = submitted
+    .map((p, i) => ({
+      ...p,
+      // Older attempts saved one editor for all problems.
+      title: submitted.length === 1 && !p.run ? null : interview.problemSpecs?.[i]?.title ?? `Problem ${i + 1}`,
+    }))
+    .filter((p) => p.code.trim());
   const languageLabel = LANGUAGE_OPTIONS.find((o) => o.value === interview.language)?.label ?? interview.language;
 
   return (
@@ -124,11 +132,42 @@ const Page = async ({ params, searchParams }: RouteParams) => {
         maxAttempts={maxAttempts}
       />
 
-      {submittedCode && (
-        <section className="break-inside-avoid space-y-3">
-          <h2 className="text-xl">Your code{languageLabel ? ` · ${languageLabel}` : ''}</h2>
-          <p className="text-sm text-muted-foreground">What was in the editor when the interview ended. It was reviewed, not run.</p>
-          <pre className="max-h-[32rem] overflow-auto rounded-xl border border-border bg-surface-raised p-4 text-xs leading-relaxed text-foreground print:max-h-none print:overflow-visible print:whitespace-pre-wrap"><code>{submittedCode}</code></pre>
+      {codeBlocks.length > 0 && (
+        <section className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-xl">Your code{languageLabel ? ` · ${languageLabel}` : ''}</h2>
+            <p className="text-sm text-muted-foreground">
+              What was in the editor when the interview ended
+              {codeBlocks.some((b) => b.run) ? ', with the result of running it against every test case.' : '. It was reviewed, not run.'}
+            </p>
+          </div>
+          {codeBlocks.map((block, i) => {
+            const allPassed = block.run && block.run.total > 0 && block.run.passed === block.run.total;
+            return (
+              <div key={i} className="break-inside-avoid space-y-2">
+                {(block.title || block.run) && (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {block.title && <h3 className="text-base">{block.title}</h3>}
+                    <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold', block.run ? (allPassed ? 'bg-success-soft text-success' : 'bg-danger/10 text-danger') : 'bg-surface-raised text-muted-foreground')}>
+                      {block.run
+                        ? block.run.failures[0]?.error && block.run.passed === 0 && block.run.failures[0].args.length === 0
+                          ? 'Did not run'
+                          : `${block.run.passed}/${block.run.total} tests passed`
+                        : 'Not run'}
+                    </span>
+                  </div>
+                )}
+                <pre className="max-h-[32rem] overflow-auto rounded-xl border border-border bg-surface-raised p-4 text-xs leading-relaxed text-foreground print:max-h-none print:overflow-visible print:whitespace-pre-wrap"><code>{block.code}</code></pre>
+                {block.run && !allPassed && block.run.failures[0] && (
+                  <p className="break-all font-mono text-xs text-text-secondary">
+                    {block.run.failures[0].args.length > 0
+                      ? `First failing test: input ${JSON.stringify(block.run.failures[0].args)}, expected ${JSON.stringify(block.run.failures[0].expected)}, ${block.run.failures[0].error ? `error: ${block.run.failures[0].error}` : `got ${JSON.stringify(block.run.failures[0].actual)}`}`
+                      : block.run.failures[0].error}
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </section>
       )}
 

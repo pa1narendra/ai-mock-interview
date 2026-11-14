@@ -78,6 +78,8 @@ interface Interview {
   format?: "standard" | "dsa" | "system_design";
   difficulty?: "easy" | "medium" | "hard" | null;
   language?: string | null;
+  // DSA rounds: runnable problem specs, aligned with questions.
+  problemSpecs?: Array<import("@/lib/problems").ProblemSpec | null> | null;
   questions: string[];
   techstack: string[];
   createdAt: string;

@@ -87,6 +87,44 @@ const LEVEL_BAR: Record<string, string> = {
 const ITEM_FORMAT =
   "Write every item as plain text, because it is shown on screen and may be read aloud: no markdown, asterisks, backticks or bullet symbols. Put each part on its own line.";
 
+// Coding problems as runnable specs (lib/ai/dsa-problems.ts checks them).
+// Inputs and outputs must be plain JSON so the same tests run in Python and
+// JavaScript; problems needing custom classes are described with arrays.
+export function buildDsaProblemsPrompt(params: {
+  role: string;
+  level: string;
+  amount: number;
+  difficulty?: string | null;
+  language?: string | null;
+  focus?: string[];
+  avoid?: string[];
+}): string {
+  const bar = LEVEL_BAR[params.level] ?? LEVEL_BAR.junior;
+  const focus = params.focus?.length
+    ? "\n\nThis is a practice round after a previous attempt. Choose problems that drill exactly these weak areas (do not repeat the earlier problems):\n" +
+      params.focus.map((area) => "- " + area).join("\n")
+    : "";
+  const avoid = params.avoid?.length ? `\nDo not reuse these problems: ${params.avoid.join("; ")}.` : "";
+
+  return `Write exactly ${params.amount} coding interview problem(s) at ${params.difficulty ?? "medium"} difficulty for ${bar} interviewing for a ${params.role} role. The candidate solves them in ${languageName(params.language)}, and their code is run against your test cases.
+Use well-known problem patterns (arrays and hashing, two pointers, sliding window, stacks, binary search, intervals, graphs as adjacency lists or edge arrays, heaps, dynamic programming) and give each problem a different pattern.
+
+Every problem is solved by ONE function. Its inputs and output must be plain JSON values: numbers, strings, booleans, null, arrays and objects. No custom classes - no ListNode or TreeNode; describe a linked list or tree as an array instead.
+The answer must be unique for every test. If several answers could be correct, either make the statement pin one down (for example "return the indices in increasing order") or set compare to "unordered" when the answer is a list whose order does not matter.
+
+For each problem give:
+- title: a short name.
+- description: the task in two to four plain sentences. Never mention the pattern, a hint or the solution.
+- constraints: input sizes and value ranges, in one line. Write powers with a caret (10^4, -10^9), never superscripts.
+- functionName: snake_case, for example two_sum.
+- params: the parameter names in order, snake_case.
+- compare: "exact", or "unordered" as described above.
+- examples: 2 tests shown to the candidate, each with argsJson (a JSON array of the arguments in order, for example "[[2,7,11,15], 9]"), expectedJson (the JSON output, for example "[0,1]") and a one-line explanation.
+- hidden: 6 to 8 more tests that cover the edge cases (smallest input, duplicates, negatives, no answer if allowed, a large-ish case) - same argsJson and expectedJson format. Keep every test small enough to check by hand.
+- referenceJs: a correct, efficient JavaScript solution as a plain function declaration named in camelCase (two_sum becomes function twoSum). No imports, no console output, no other code. It is run against every test to check them.
+Write descriptions in plain text: no markdown, asterisks or backticks.${avoid}${focus}`;
+}
+
 // Coding problems or design prompts for a round. focus (from a previous
 // report) turns it into a practice-my-gaps round on the same format.
 export function buildRoundPrompt(params: {
@@ -151,7 +189,7 @@ For each problem, run it like a real interviewer:
 1. Present it (start_problem first). Invite clarifying questions and answer them briefly. Do not offer the approach.
 2. Before they code, ask for their approach and its time and space complexity. If the approach is wrong or clearly suboptimal, ask a question that makes them reconsider - do not correct them outright.
 3. While they code, mostly stay quiet: long silences are normal while someone types. Do not narrate or interrupt.
-4. When they say they are done, ask you to look, or you want to discuss their code, call get_candidate_code first and talk about what is actually there - name the specific line, variable or loop. Never claim to have seen code you have not fetched.
+4. When they say they are done, ask you to look, or you want to discuss their code, call get_candidate_code first and talk about what is actually there - name the specific line, variable or loop. Never claim to have seen code you have not fetched. It also returns their latest test run if they pressed Run or Submit: when tests fail, point them at the failing input and ask them to find the bug themselves - never tell them the fix.
 5. Probe the code: walk through an example input, then edge cases (empty input, one element, duplicates, negatives, very large input). Ask them to find and fix bugs themselves.
 6. Ask for the final time and space complexity. If a better solution exists, ask whether they can improve it.
 7. Hints: only if they are stuck for a while, and smallest first (a question, then a nudge toward the idea, never the full solution).
